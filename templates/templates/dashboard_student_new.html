@@ -255,6 +255,15 @@ function loadDashboardStats() {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('=== STUDENT DASHBOARD LOADED ===');
     
+    // Store user data from server session to localStorage for frontend components
+    const userData = {{ user | tojson | safe }};
+    if (userData && userData.id) {
+        console.log('💾 Storing user data in localStorage:', userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+    } else {
+        console.warn('⚠️ No user data from server session');
+    }
+    
     // Wait for all partials to load
     setTimeout(function() {
         console.log('window.studentMonthlyExams available?', !!window.studentMonthlyExams);
