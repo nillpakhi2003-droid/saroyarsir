@@ -403,10 +403,11 @@ def bulk_create_fees():
         # Get student IDs (optional filter)
         student_ids = data.get('student_ids', [])
         
-        # Get students from batch
+        # Get students from batch (exclude archived)
         students_query = User.query.filter(
             User.role == UserRole.STUDENT,
-            User.is_active == True
+            User.is_active == True,
+            User.is_archived == False
         ).join(User.batches).filter(Batch.id == data['batch_id'])
         
         if student_ids:
@@ -512,10 +513,11 @@ def create_monthly_fees(batch_id):
         else:
             amount = batch.fee_amount
         
-        # Get all active students in batch
+        # Get all active students in batch (exclude archived)
         students = User.query.filter(
             User.role == UserRole.STUDENT,
-            User.is_active == True
+            User.is_active == True,
+            User.is_archived == False
         ).join(User.batches).filter(Batch.id == batch_id).all()
         
         if not students:
@@ -685,10 +687,11 @@ def get_monthly_fees():
             if not check_batch_access(current_user, batch_id):
                 return error_response('Access denied to this batch', 403)
         
-        # Get all students in the batch
+        # Get all students in the batch (exclude archived)
         students = User.query.filter(
             User.role == UserRole.STUDENT,
-            User.is_active == True
+            User.is_active == True,
+            User.is_archived == False
         ).join(User.batches).filter(Batch.id == batch_id).all()
         
         if not students:
@@ -984,10 +987,11 @@ def get_monthly_fees_noauth():
         if not batch_id:
             return error_response('batch_id parameter is required', 400)
         
-        # Get all students in the batch
+        # Get all students in the batch (exclude archived)
         students = User.query.filter(
             User.role == UserRole.STUDENT,
-            User.is_active == True
+            User.is_active == True,
+            User.is_archived == False
         ).join(User.batches).filter(Batch.id == batch_id).all()
         
         if not students:

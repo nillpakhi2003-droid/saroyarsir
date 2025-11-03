@@ -186,9 +186,20 @@
             const individualExams = indExamsData.data?.individual_exams || [];
             const rankings = rankingsData.data?.nearby_rankings || [];
             
-            // Find student's rank data which contains individual marks
-            const myRankData = rankings.find(r => r.user_id === user.id || 
-                (user.allStudents && user.allStudents.some(s => s.id === r.user_id)));
+            // Get all student IDs for this user (handles multi-student accounts)
+            const allStudentIds = [];
+            if (user.id) allStudentIds.push(user.id);
+            if (user.allStudents && user.allStudents.length > 0) {
+                user.allStudents.forEach(student => {
+                    if (!allStudentIds.includes(student.id)) {
+                        allStudentIds.push(student.id);
+                    }
+                });
+            }
+            
+            // Find ALL students' rank data (for multi-student accounts)
+            const myRankDataArray = rankings.filter(r => allStudentIds.includes(r.user_id));
+            const myRankData = myRankDataArray[0]; // For backward compatibility
             
             if (individualExams.length > 0) {
                 html += '<div class="grid md:grid-cols-2 gap-4 mb-6">';
@@ -249,25 +260,28 @@
             html += '</h3>';
             
             if (rankings.length > 0) {
-                // Student's Result Card
-                const myRank = rankings.find(r => r.user_id === user.id || 
-                    (user.allStudents && user.allStudents.some(s => s.id === r.user_id)));
-                
-                if (myRank) {
-                    html += '<div class="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-400 rounded-lg p-5 mb-6">';
-                    html += '<div class="flex items-center justify-between">';
-                    html += '<div class="flex items-center gap-4">';
-                    html += '<div class="bg-green-500 text-white rounded-full w-16 h-16 flex items-center justify-center">';
-                    html += '<span class="text-2xl font-bold">#' + myRank.position + '</span>';
-                    html += '</div>';
-                    html += '<div>';
-                    html += '<div class="text-sm text-gray-600">Your Rank</div>';
-                    html += '<div class="font-bold text-gray-800 text-lg">' + myRank.student_name + '</div>';
-                    html += '</div></div>';
-                    html += '<div class="text-right">';
-                    html += '<div class="text-3xl font-bold text-gray-800">' + myRank.total_exam_marks + '<span class="text-lg text-gray-500">/' + exam.total_marks + '</span></div>';
-                    html += '<div class="text-xl font-semibold text-green-600">' + myRank.percentage.toFixed(1) + '% · ' + myRank.grade + '</div>';
-                    html += '</div></div></div>';
+                // Show results for ALL students in multi-student accounts
+                if (myRankDataArray.length > 0) {
+                    myRankDataArray.forEach((myRank, index) => {
+                        const borderColor = index === 0 ? 'border-green-400' : 'border-blue-400';
+                        const bgColor = index === 0 ? 'from-green-50 to-emerald-50' : 'from-blue-50 to-indigo-50';
+                        const badgeColor = index === 0 ? 'bg-green-500' : 'bg-blue-500';
+                        
+                        html += '<div class="bg-gradient-to-r ' + bgColor + ' border-2 ' + borderColor + ' rounded-lg p-5 mb-4">';
+                        html += '<div class="flex items-center justify-between">';
+                        html += '<div class="flex items-center gap-4">';
+                        html += '<div class="' + badgeColor + ' text-white rounded-full w-16 h-16 flex items-center justify-center">';
+                        html += '<span class="text-2xl font-bold">#' + myRank.position + '</span>';
+                        html += '</div>';
+                        html += '<div>';
+                        html += '<div class="text-sm text-gray-600">' + (myRankDataArray.length > 1 ? 'Student Rank' : 'Your Rank') + '</div>';
+                        html += '<div class="font-bold text-gray-800 text-lg">' + myRank.student_name + '</div>';
+                        html += '</div></div>';
+                        html += '<div class="text-right">';
+                        html += '<div class="text-3xl font-bold text-gray-800">' + myRank.total_exam_marks + '<span class="text-lg text-gray-500">/' + exam.total_marks + '</span></div>';
+                        html += '<div class="text-xl font-semibold text-green-600">' + myRank.percentage.toFixed(1) + '% · ' + myRank.grade + '</div>';
+                        html += '</div></div></div>';
+                    });
                 }
                 
                 // Rankings Table
@@ -284,8 +298,8 @@
                 html += '<tbody class="divide-y divide-gray-200">';
                 
                 rankings.forEach((rank, idx) => {
-                    const isMyRank = rank.user_id === user.id || 
-                        (user.allStudents && user.allStudents.some(s => s.id === rank.user_id));
+                    // Highlight ALL students in multi-student accounts
+                    const isMyRank = allStudentIds.includes(rank.user_id);
                     const rowClass = isMyRank ? 'bg-green-50 font-semibold' : 'hover:bg-gray-50';
                     const medalIcon = idx === 0 ? '🥇 ' : idx === 1 ? '🥈 ' : idx === 2 ? '🥉 ' : '';
                     

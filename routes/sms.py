@@ -406,10 +406,11 @@ def send_batch_sms():
         if len(batches) != len(batch_ids):
             return error_response('Some batch IDs are invalid', 400)
         
-        # Get all students from selected batches
+        # Get all students from selected batches (exclude archived)
         students = User.query.filter(
             User.role == UserRole.STUDENT,
-            User.is_active == True
+            User.is_active == True,
+            User.is_archived == False
         ).join(user_batches).filter(user_batches.c.batch_id.in_(batch_ids)).distinct().all()
         
         # Collect phone numbers
