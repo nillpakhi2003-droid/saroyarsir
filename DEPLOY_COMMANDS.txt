@@ -1,0 +1,88 @@
+================================================================================
+🚀 VPS DEPLOYMENT - COPY & PASTE COMMANDS
+================================================================================
+
+STEP 1: SSH to Your VPS
+--------------------------------------------------------------------------------
+ssh root@YOUR_VPS_IP
+
+STEP 2: Navigate to Project (if exists) or Clone (if first time)
+--------------------------------------------------------------------------------
+# If project already exists:
+cd /root/saroyarsir
+
+# If first time (clone from GitHub):
+cd /root
+git clone https://github.com/sa5613675-jpg/saroyarsir.git
+cd saroyarsir
+
+STEP 3: Pull Latest Code
+--------------------------------------------------------------------------------
+git pull origin main
+
+STEP 4: Install Dependencies (if first time)
+--------------------------------------------------------------------------------
+pip3 install flask flask-sqlalchemy flask-bcrypt gunicorn
+
+STEP 5: Run Deployment Script
+--------------------------------------------------------------------------------
+chmod +x deploy_to_vps_sqlite.sh
+./deploy_to_vps_sqlite.sh
+
+STEP 6: Check Status
+--------------------------------------------------------------------------------
+sudo systemctl status saro_vps
+
+STEP 7: View Logs (if needed)
+--------------------------------------------------------------------------------
+sudo journalctl -u saro_vps -f
+
+STEP 8: Access Application
+--------------------------------------------------------------------------------
+Open browser: http://YOUR_VPS_IP:8001
+
+Login as Admin:
+  Phone: 01700000000
+  Password: admin123
+
+Login as Teacher:
+  Phone: 01800000000
+  Password: teacher123
+
+================================================================================
+📊 DATABASE FILE LOCATION
+================================================================================
+/root/saroyarsir/smartgardenhub_production.db
+
+================================================================================
+🔧 USEFUL COMMANDS
+================================================================================
+
+Start service:
+  sudo systemctl start saro_vps
+
+Stop service:
+  sudo systemctl stop saro_vps
+
+Restart service:
+  sudo systemctl restart saro_vps
+
+Check status:
+  sudo systemctl status saro_vps
+
+View logs:
+  sudo journalctl -u saro_vps -f
+
+Kill process on port 8001:
+  sudo kill -9 $(sudo lsof -t -i:8001)
+
+Check if app is running:
+  sudo lsof -i :8001
+
+Backup database:
+  cp /root/saroyarsir/smartgardenhub_production.db \
+     /root/backups/backup_$(date +%Y%m%d).db
+
+================================================================================
+✅ ALL DONE! YOUR APP IS READY ON PORT 8001
+================================================================================
