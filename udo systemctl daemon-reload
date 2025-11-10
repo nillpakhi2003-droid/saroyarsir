@@ -1,0 +1,40 @@
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:     return db_load_fn(
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:            ^^^^^^^^^^^
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:   File "/var/www/saroyarsir/venv/lib/python3.12/site-packages/sqlalchemy/orm/loading.py", line 695, in load_on_pk_identity
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:     session.execute(
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:   File "/var/www/saroyarsir/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:     return self._execute_internal(
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:            ^^^^^^^^^^^^^^^^^^^^^^^
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:   File "/var/www/saroyarsir/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:     result: Result[Any] = compile_state_cls.orm_execute_statement(
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:   File "/var/www/saroyarsir/venv/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:     result = conn.execute(
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:              ^^^^^^^^^^^^^
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:   File "/var/www/saroyarsir/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:     return meth(
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:            ^^^^^
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:   File "/var/www/saroyarsir/venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:     return connection._execute_clauseelement(
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:   File "/var/www/saroyarsir/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:     ret = self._execute_context(
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:           ^^^^^^^^^^^^^^^^^^^^^^
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:   File "/var/www/saroyarsir/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:     return self._exec_single_context(
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:   File "/var/www/saroyarsir/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:     self._handle_dbapi_exception(
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:   File "/var/www/saroyarsir/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:   File "/var/www/saroyarsir/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:     self.dialect.do_execute(
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:   File "/var/www/saroyarsir/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]:     cursor.execute(statement, parameters)
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]: sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such column: users.admission_date
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]: [SQL: SELECT users.id AS users_id, users."phoneNumber" AS "users_phoneNumber", users.first_name AS users_first_name, users.last_name AS users_last_name, users.email AS users_email, users.password_hash AS users_password_hash, users.role AS users_role, users.profile_image AS users_profile_image, users.date_of_birth AS users_date_of_birth, users.address AS users_address, users.guardian_name AS users_guardian_name, users.guardian_phone AS users_guardian_phone, users.mother_name AS users_mother_name, users.emergency_contact AS users_emergency_contact, users.admission_date AS users_admission_date, users.sms_count AS users_sms_count, users.is_active AS users_is_active, users.last_login AS users_last_login, users.is_archived AS users_is_archived, users.archived_at AS users_archived_at, users.archived_by AS users_archived_by, users.archive_reason AS users_archive_reason, users.created_at AS users_created_at, users.updated_at AS users_updated_at
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]: FROM users
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]: WHERE users.id = ?]
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]: [parameters: (4,)]
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]: (Background on this error at: https://sqlalche.me/e/20/e3q8)
+Nov 05 15:26:42 vmi2823196 gunicorn[1516174]: 127.0.0.1 - - [05/Nov/2025:15:26:42 +0100] "GET /api/dashboard/stats HTTP/1.0" 500 0 "-" "-"
