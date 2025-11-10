@@ -30,20 +30,15 @@ class DevelopmentConfig(Config):
     SQLALCHEMY_ECHO = False
 
 class ProductionConfig(Config):
-    """Production configuration"""
+    """Production configuration with SQLite"""
     DEBUG = False
     
-    # MySQL for production
-    MYSQL_HOST = os.environ.get('MYSQL_HOST', 'localhost')
-    MYSQL_PORT = os.environ.get('MYSQL_PORT', '3306')
-    MYSQL_USER = os.environ.get('MYSQL_USER', 'root')
-    MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', '')
-    MYSQL_DATABASE = os.environ.get('MYSQL_DATABASE', 'smartgardenhub')
-    
-    if MYSQL_PASSWORD:
-        SQLALCHEMY_DATABASE_URI = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}"
-    else:
-        SQLALCHEMY_DATABASE_URI = f"mysql+pymysql://{MYSQL_USER}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}"
+    # SQLite database for production
+    # Using absolute path for VPS deployment
+    base_dir = Path(__file__).parent.absolute()
+    SQLALCHEMY_DATABASE_URI = f"sqlite:///{base_dir}/smartgardenhub_production.db"
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ECHO = False
 
 config_by_name = {
     'development': DevelopmentConfig,

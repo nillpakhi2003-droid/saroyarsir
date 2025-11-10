@@ -48,6 +48,7 @@ def create_app(config_name=None):
     from routes.settings import settings_bp
     from routes.students import students_bp
     from routes.monthly_exams import monthly_exams_bp
+    from routes.online_exams import online_exams_bp  # NEW: Online MCQ Exam System
     from routes.debug import debug_bp
     from routes.documents import documents_bp
     from routes.database import database_bp
@@ -67,6 +68,7 @@ def create_app(config_name=None):
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
     app.register_blueprint(settings_bp, url_prefix='/api/settings')
     app.register_blueprint(monthly_exams_bp, url_prefix='/api/monthly-exams')
+    app.register_blueprint(online_exams_bp)  # Uses /api/online-exams prefix from blueprint
     app.register_blueprint(debug_bp, url_prefix='/api/debug')
     app.register_blueprint(documents_bp, url_prefix='/api/documents')
     app.register_blueprint(database_bp, url_prefix='/api/database')

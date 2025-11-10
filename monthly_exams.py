@@ -1109,7 +1109,7 @@ def get_individual_exam_marks(exam_id, individual_exam_id):
 @login_required
 @require_role(UserRole.TEACHER, UserRole.SUPER_USER)
 def delete_individual_exam(exam_id, individual_exam_id):
-    """Delete an individual exam and update monthly exam total"""
+    """Delete an individual exam and all associated marks, then update monthly exam total"""
     try:
         monthly_exam = MonthlyExam.query.get(exam_id)
         if not monthly_exam:
@@ -1123,10 +1123,11 @@ def delete_individual_exam(exam_id, individual_exam_id):
         if not individual_exam:
             return error_response('Individual exam not found', 404)
         
-        # Check if there are any marks entered for this exam
-        marks_count = MonthlyMark.query.filter_by(individual_exam_id=individual_exam_id).count()
-        if marks_count > 0:
-            return error_response('Cannot delete exam. Marks have been entered for this exam.', 400)
+        # Delete all marks associated with this individual exam (CASCADE delete)
+        marks_deleted = MonthlyMark.query.filter_by(individual_exam_id=individual_exam_id).delete()
+        
+        # Delete all rankings that might be affected
+        MonthlyRanking.query.filter_by(monthly_exam_id=exam_id).delete()
         
         # Delete the individual exam
         db.session.delete(individual_exam)
@@ -1140,9 +1141,10 @@ def delete_individual_exam(exam_id, individual_exam_id):
         
         db.session.commit()
         
-        return success_response('Individual exam deleted successfully', {
+        return success_response(f'Individual exam deleted successfully. {marks_deleted} marks record(s) removed.', {
             'monthly_exam_total': new_total,
-            'monthly_exam_pass_marks': monthly_exam.pass_marks
+            'monthly_exam_pass_marks': monthly_exam.pass_marks,
+            'marks_deleted': marks_deleted
         })
         
     except Exception as e:

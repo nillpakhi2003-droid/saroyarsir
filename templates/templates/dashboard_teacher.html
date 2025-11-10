@@ -5,6 +5,16 @@
 {% block extra_head %}
 <script src="https://unpkg.com/htmx.org@1.9.6"></script>
 <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<!-- Bangla font support -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    .font-bangla {
+        font-family: 'Noto Sans Bengali', sans-serif;
+    }
+    [x-cloak] { display: none !important; }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -154,6 +164,11 @@
                 {% include 'partials/monthly_exam_management.html' %}
             </div>
 
+            <!-- Online Exam Management -->
+            <div x-show="activeSection === 'online-exams'" x-transition>
+                {% include 'partials/online_exam_management.html' %}
+            </div>
+
             <!-- Attendance -->
             <div x-show="activeSection === 'attendance'" x-transition>
                 {% include 'partials/attendance_management.html' %}
@@ -233,6 +248,7 @@ function teacherDashboard() {
             { id: 'students', title: 'Students', icon: 'fas fa-users' },
             { id: 'batches', title: 'Batches', icon: 'fas fa-graduation-cap' },
             { id: 'monthly-exams', title: 'Monthly Exams', icon: 'fas fa-clipboard-list' },
+            { id: 'online-exams', title: 'Online Exam', icon: 'fas fa-laptop' },
             { id: 'attendance', title: 'Attendance', icon: 'fas fa-calendar-check' },
             { id: 'fees', title: 'Fees', icon: 'fas fa-money-bill' },
             { id: 'sms', title: 'SMS', icon: 'fas fa-sms' },

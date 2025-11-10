@@ -211,6 +211,26 @@ def create_fee():
             except (ValueError, TypeError):
                 return error_response('Invalid discount format', 400)
         
+        # Parse exam_fee
+        exam_fee = Decimal('0.00')
+        if data.get('exam_fee'):
+            try:
+                exam_fee = Decimal(str(data['exam_fee']))
+                if exam_fee < 0:
+                    return error_response('Exam fee cannot be negative', 400)
+            except (ValueError, TypeError):
+                return error_response('Invalid exam fee format', 400)
+        
+        # Parse other_fee
+        other_fee = Decimal('0.00')
+        if data.get('other_fee'):
+            try:
+                other_fee = Decimal(str(data['other_fee']))
+                if other_fee < 0:
+                    return error_response('Other fee cannot be negative', 400)
+            except (ValueError, TypeError):
+                return error_response('Invalid other fee format', 400)
+        
         # Check for duplicate fee record
         existing_fee = Fee.query.filter_by(
             user_id=data['user_id'],
@@ -229,6 +249,8 @@ def create_fee():
             due_date=due_date,
             late_fee=late_fee,
             discount=discount,
+            exam_fee=exam_fee,
+            other_fee=other_fee,
             notes=data.get('notes', '').strip() if data.get('notes') else None,
             status=FeeStatus.PENDING
         )
@@ -261,11 +283,11 @@ def update_fee(fee_id):
             return error_response('Request data is required', 400)
         
         # Update allowed fields
-        updatable_fields = ['amount', 'due_date', 'late_fee', 'discount', 'notes']
+        updatable_fields = ['amount', 'due_date', 'late_fee', 'discount', 'exam_fee', 'other_fee', 'notes']
         
         for field in updatable_fields:
             if field in data:
-                if field in ['amount', 'late_fee', 'discount']:
+                if field in ['amount', 'late_fee', 'discount', 'exam_fee', 'other_fee']:
                     try:
                         value = Decimal(str(data[field]))
                         if value < 0:
@@ -446,6 +468,8 @@ def bulk_create_fees():
                 due_date=due_date,
                 late_fee=Decimal(str(data.get('late_fee', '0.00'))),
                 discount=Decimal(str(data.get('discount', '0.00'))),
+                exam_fee=Decimal(str(data.get('exam_fee', '0.00'))),
+                other_fee=Decimal(str(data.get('other_fee', '0.00'))),
                 notes=data.get('notes', '').strip() if data.get('notes') else None,
                 status=FeeStatus.PENDING
             )
@@ -550,6 +574,8 @@ def create_monthly_fees(batch_id):
                 batch_id=batch_id,
                 amount=amount,
                 due_date=due_date,
+                exam_fee=Decimal(str(data.get('exam_fee', '0.00'))),
+                other_fee=Decimal(str(data.get('other_fee', '0.00'))),
                 notes=f'Monthly fee for {calendar.month_name[month]} {year}',
                 status=FeeStatus.PENDING
             )
@@ -955,6 +981,8 @@ def save_monthly_fee_noauth():
                     batch_id=batch.id,
                     amount=amount,
                     due_date=due_date,
+                    exam_fee=Decimal(str(data.get('exam_fee', '0.00'))),
+                    other_fee=Decimal(str(data.get('other_fee', '0.00'))),
                     notes=f'Monthly fee for {calendar.month_name[month]} {year}',
                     status=FeeStatus.PENDING
                 )

@@ -147,7 +147,9 @@ def serialize_fee(fee):
     amount = getattr(fee, 'amount', 0) or 0
     late_fee = getattr(fee, 'late_fee', 0) or 0
     discount = getattr(fee, 'discount', 0) or 0
-    total_amount = amount + late_fee - discount
+    exam_fee = getattr(fee, 'exam_fee', 0) or 0
+    other_fee = getattr(fee, 'other_fee', 0) or 0
+    total_amount = amount + late_fee + exam_fee + other_fee - discount
     fee_data['total_amount'] = float(total_amount)
     due_date = getattr(fee, 'due_date', None)
     status = getattr(fee, 'status', None)

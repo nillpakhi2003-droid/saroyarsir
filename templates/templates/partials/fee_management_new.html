@@ -86,6 +86,12 @@
                                 <th class="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap"
                                     x-text="getMonthName(month)"></th>
                             </template>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider bg-yellow-100">
+                                Exam Fee
+                            </th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider bg-purple-100">
+                                Other Fee
+                            </th>
                             <th class="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider bg-blue-100">
                                 Total
                             </th>
@@ -112,6 +118,26 @@
                                                step="0.01">
                                     </td>
                                 </template>
+                                <td class="px-2 py-3 text-center bg-yellow-50">
+                                    <input type="number" 
+                                           :value="getExamFee(student.student_id)"
+                                           @input="updateExamFee(student.student_id, $event.target.value)"
+                                           @change="markChangedExamFee(student.student_id)"
+                                           class="w-20 px-2 py-1 text-center border border-yellow-300 rounded focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                                           min="0"
+                                           step="0.01"
+                                           placeholder="0">
+                                </td>
+                                <td class="px-2 py-3 text-center bg-purple-50">
+                                    <input type="number" 
+                                           :value="getOtherFee(student.student_id)"
+                                           @input="updateOtherFee(student.student_id, $event.target.value)"
+                                           @change="markChangedOtherFee(student.student_id)"
+                                           class="w-20 px-2 py-1 text-center border border-purple-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                           min="0"
+                                           step="0.01"
+                                           placeholder="0">
+                                </td>
                                 <td class="px-4 py-3 text-center font-bold text-blue-600 bg-blue-50"
                                     x-text="getStudentTotal(student.student_id).toFixed(2)"></td>
                             </tr>
@@ -126,6 +152,10 @@
                                 <td class="px-4 py-3 text-center font-bold text-gray-900"
                                     x-text="getMonthTotal(month).toFixed(2)"></td>
                             </template>
+                            <td class="px-4 py-3 text-center font-bold text-yellow-700 bg-yellow-50"
+                                x-text="getTotalExamFees().toFixed(2)"></td>
+                            <td class="px-4 py-3 text-center font-bold text-purple-700 bg-purple-50"
+                                x-text="getTotalOtherFees().toFixed(2)"></td>
                             <td class="px-4 py-3 text-center font-bold text-blue-600 text-lg bg-blue-100"
                                 x-text="getGrandTotal().toFixed(2)"></td>
                         </tr>
@@ -294,12 +324,78 @@ function feeManagerNew() {
             return this.changedFees.size > 0;
         },
         
-        // Get total for a student across all months
+        // Get total for a student across all months + exam_fee + other_fee
         getStudentTotal(studentId) {
             let total = 0;
             for (let month = 1; month <= 12; month++) {
                 total += this.getFeeAmount(studentId, month);
             }
+            total += this.getExamFee(studentId);
+            total += this.getOtherFee(studentId);
+            return total;
+        },
+        
+        // Get exam fee for a student
+        getExamFee(studentId) {
+            if (!this.fees[studentId]) {
+                this.fees[studentId] = {};
+            }
+            return this.fees[studentId].exam_fee || 0;
+        },
+        
+        // Get other fee for a student
+        getOtherFee(studentId) {
+            if (!this.fees[studentId]) {
+                this.fees[studentId] = {};
+            }
+            return this.fees[studentId].other_fee || 0;
+        },
+        
+        // Update exam fee
+        updateExamFee(studentId, value) {
+            const amount = parseFloat(value) || 0;
+            if (!this.fees[studentId]) {
+                this.fees[studentId] = {};
+            }
+            this.fees[studentId].exam_fee = amount;
+        },
+        
+        // Update other fee
+        updateOtherFee(studentId, value) {
+            const amount = parseFloat(value) || 0;
+            if (!this.fees[studentId]) {
+                this.fees[studentId] = {};
+            }
+            this.fees[studentId].other_fee = amount;
+        },
+        
+        // Mark exam fee as changed
+        markChangedExamFee(studentId) {
+            const key = `${studentId}_exam`;
+            this.changedFees.add(key);
+        },
+        
+        // Mark other fee as changed
+        markChangedOtherFee(studentId) {
+            const key = `${studentId}_other`;
+            this.changedFees.add(key);
+        },
+        
+        // Get total exam fees across all students
+        getTotalExamFees() {
+            let total = 0;
+            this.students.forEach(student => {
+                total += this.getExamFee(student.student_id);
+            });
+            return total;
+        },
+        
+        // Get total other fees across all students
+        getTotalOtherFees() {
+            let total = 0;
+            this.students.forEach(student => {
+                total += this.getOtherFee(student.student_id);
+            });
             return total;
         },
         
@@ -312,7 +408,7 @@ function feeManagerNew() {
             return total;
         },
         
-        // Get grand total of all fees
+        // Get grand total of all fees (months + exam + other)
         getGrandTotal() {
             let total = 0;
             this.students.forEach(student => {

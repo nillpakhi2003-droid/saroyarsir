@@ -2,6 +2,19 @@
 
 {% block title %}Student Dashboard - GS Student Nursing Center{% endblock %}
 
+{% block extra_head %}
+<!-- Bangla font support -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    .font-bangla {
+        font-family: 'Noto Sans Bengali', sans-serif;
+    }
+    [x-cloak] { display: none !important; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="min-h-screen bg-gray-50">
     <!-- Mobile sidebar overlay -->
@@ -26,6 +39,10 @@
             <a href="#monthly-exams" data-section="monthly-exams" class="nav-item group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 mb-1">
                 <i class="fas fa-clipboard-list mr-3 h-6 w-6"></i>
                 Monthly Exams
+            </a>
+            <a href="#online-exams" data-section="online-exams" class="nav-item group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 mb-1">
+                <i class="fas fa-laptop mr-3 h-6 w-6"></i>
+                Online Exam
             </a>
             <a href="#online-resources" data-section="online-resources" class="nav-item group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 mb-1">
                 <i class="fas fa-book mr-3 h-6 w-6"></i>
@@ -121,6 +138,11 @@
             <!-- Monthly Exams Section -->
             <div id="monthly-examsSection" class="content-section hidden">
                 {% include 'partials/student_monthly_exams.html' %}
+            </div>
+
+            <!-- Online Exam Section -->
+            <div id="online-examsSection" class="content-section hidden">
+                {% include 'partials/student_online_exams.html' %}
             </div>
 
             <!-- Online Resources Section -->

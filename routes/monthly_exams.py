@@ -1498,7 +1498,7 @@ def get_individual_exam_marks(exam_id, individual_exam_id):
 @login_required
 @require_role(UserRole.TEACHER, UserRole.SUPER_USER)
 def delete_individual_exam(exam_id, individual_exam_id):
-    """Delete an individual exam and update monthly exam total"""
+    """Delete an individual exam and all associated marks, then update monthly exam total"""
     try:
         monthly_exam = MonthlyExam.query.get(exam_id)
         if not monthly_exam:
@@ -1512,10 +1512,11 @@ def delete_individual_exam(exam_id, individual_exam_id):
         if not individual_exam:
             return error_response('Individual exam not found', 404)
         
-        # Check if there are any marks entered for this exam
-        marks_count = MonthlyMark.query.filter_by(individual_exam_id=individual_exam_id).count()
-        if marks_count > 0:
-            return error_response('Cannot delete exam. Marks have been entered for this exam.', 400)
+        # Delete all marks associated with this individual exam (CASCADE delete)
+        marks_deleted = MonthlyMark.query.filter_by(individual_exam_id=individual_exam_id).delete()
+        
+        # Delete all rankings that might be affected
+        MonthlyRanking.query.filter_by(monthly_exam_id=exam_id).delete()
         
         # Delete the individual exam
         db.session.delete(individual_exam)
@@ -1529,9 +1530,10 @@ def delete_individual_exam(exam_id, individual_exam_id):
         
         db.session.commit()
         
-        return success_response('Individual exam deleted successfully', {
+        return success_response(f'Individual exam deleted successfully. {marks_deleted} marks record(s) removed.', {
             'monthly_exam_total': new_total,
-            'monthly_exam_pass_marks': monthly_exam.pass_marks
+            'monthly_exam_pass_marks': monthly_exam.pass_marks,
+            'marks_deleted': marks_deleted
         })
         
     except Exception as e:
@@ -1542,7 +1544,7 @@ def delete_individual_exam(exam_id, individual_exam_id):
 @monthly_exams_bp.route('/<int:exam_id>', methods=['DELETE'])
 @login_required
 def delete_monthly_exam(exam_id):
-    """Delete a monthly exam period and all associated data"""
+    """Delete a monthly exam period and all associated data (marks, rankings, individual exams)"""
     try:
         current_user = get_current_user()
         monthly_exam = db.session.get(MonthlyExam, exam_id)
@@ -1554,23 +1556,26 @@ def delete_monthly_exam(exam_id):
         if current_user.role not in [UserRole.SUPER_USER, UserRole.TEACHER]:
             return error_response('Permission denied', 403)
         
-        # Check if any marks have been entered
-        marks_count = MonthlyMark.query.filter_by(monthly_exam_id=exam_id).count()
-        if marks_count > 0:
-            return error_response('Cannot delete exam period. Marks have been entered. Please delete all marks first.', 400)
+        # CASCADE DELETE: Delete all associated data
         
-        # Delete associated data
+        # Delete all marks for this monthly exam
+        marks_deleted = MonthlyMark.query.filter_by(monthly_exam_id=exam_id).delete()
+        
         # Delete rankings
-        MonthlyRanking.query.filter_by(monthly_exam_id=exam_id).delete()
+        rankings_deleted = MonthlyRanking.query.filter_by(monthly_exam_id=exam_id).delete()
         
         # Delete individual exams
-        IndividualExam.query.filter_by(monthly_exam_id=exam_id).delete()
+        individual_exams_deleted = IndividualExam.query.filter_by(monthly_exam_id=exam_id).delete()
         
         # Delete the monthly exam
         db.session.delete(monthly_exam)
         db.session.commit()
         
-        return success_response('Monthly exam period deleted successfully')
+        return success_response(f'Monthly exam period deleted successfully. Removed {marks_deleted} marks, {rankings_deleted} rankings, and {individual_exams_deleted} individual exams.', {
+            'marks_deleted': marks_deleted,
+            'rankings_deleted': rankings_deleted,
+            'individual_exams_deleted': individual_exams_deleted
+        })
         
     except Exception as e:
         db.session.rollback()

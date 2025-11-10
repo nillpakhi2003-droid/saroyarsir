@@ -644,3 +644,105 @@ class Document(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+
+class OnlineExam(db.Model):
+    """Online exam model for class-wise MCQ exams"""
+    __tablename__ = 'online_exams'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    class_name = db.Column(db.String(100), nullable=False)  # e.g., "Class 10", "HSC"
+    book_name = db.Column(db.String(255), nullable=False)  # e.g., "Physics", "Chemistry"
+    chapter_name = db.Column(db.String(255), nullable=False)  # e.g., "Chapter 1: Motion"
+    duration = db.Column(db.Integer, nullable=False)  # Duration in minutes
+    total_questions = db.Column(db.Integer, nullable=False)  # Max 40
+    pass_percentage = db.Column(db.Float, default=40.0)  # Minimum percentage to pass
+    allow_retake = db.Column(db.Boolean, default=True)  # Allow students to retake
+    is_active = db.Column(db.Boolean, default=True)
+    is_published = db.Column(db.Boolean, default=False)  # Only published exams visible to students
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    creator = db.relationship('User', foreign_keys=[created_by])
+    questions = db.relationship('OnlineQuestion', back_populates='exam', cascade='all, delete-orphan', lazy='dynamic')
+    attempts = db.relationship('OnlineExamAttempt', back_populates='exam', cascade='all, delete-orphan', lazy='dynamic')
+    
+    def __repr__(self):
+        return f'<OnlineExam {self.title} - {self.class_name}>'
+
+class OnlineQuestion(db.Model):
+    """Questions for online exams"""
+    __tablename__ = 'online_questions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    exam_id = db.Column(db.Integer, db.ForeignKey('online_exams.id'), nullable=False)
+    question_text = db.Column(db.Text, nullable=False)
+    option_a = db.Column(db.Text, nullable=False)
+    option_b = db.Column(db.Text, nullable=False)
+    option_c = db.Column(db.Text, nullable=False)
+    option_d = db.Column(db.Text, nullable=False)
+    correct_answer = db.Column(db.String(1), nullable=False)  # 'A', 'B', 'C', or 'D'
+    explanation = db.Column(db.Text, nullable=True)  # Optional explanation for the answer
+    question_order = db.Column(db.Integer, default=0)  # Order in which questions appear
+    marks = db.Column(db.Integer, default=1)  # Marks for this question
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    exam = db.relationship('OnlineExam', back_populates='questions')
+    student_answers = db.relationship('OnlineStudentAnswer', back_populates='question', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<OnlineQuestion {self.id} for Exam {self.exam_id}>'
+
+class OnlineExamAttempt(db.Model):
+    """Student attempts for online exams"""
+    __tablename__ = 'online_exam_attempts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    exam_id = db.Column(db.Integer, db.ForeignKey('online_exams.id'), nullable=False)
+    student_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    attempt_number = db.Column(db.Integer, default=1)  # Track which attempt this is
+    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    submitted_at = db.Column(db.DateTime, nullable=True)
+    time_taken = db.Column(db.Integer, nullable=True)  # Time taken in seconds
+    is_submitted = db.Column(db.Boolean, default=False)
+    auto_submitted = db.Column(db.Boolean, default=False)  # True if auto-submitted due to timeout
+    score = db.Column(db.Integer, default=0)  # Total score
+    total_marks = db.Column(db.Integer, default=0)  # Total possible marks
+    percentage = db.Column(db.Float, default=0.0)
+    is_passed = db.Column(db.Boolean, default=False)
+    
+    # Relationships
+    exam = db.relationship('OnlineExam', back_populates='attempts')
+    student = db.relationship('User', foreign_keys=[student_id])
+    answers = db.relationship('OnlineStudentAnswer', back_populates='attempt', cascade='all, delete-orphan')
+    
+    __table_args__ = (db.Index('idx_exam_student', 'exam_id', 'student_id'),)
+    
+    def __repr__(self):
+        return f'<OnlineExamAttempt {self.id} - Student {self.student_id} - Exam {self.exam_id}>'
+
+class OnlineStudentAnswer(db.Model):
+    """Student answers for each question"""
+    __tablename__ = 'online_student_answers'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    attempt_id = db.Column(db.Integer, db.ForeignKey('online_exam_attempts.id'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('online_questions.id'), nullable=False)
+    selected_answer = db.Column(db.String(1), nullable=True)  # 'A', 'B', 'C', 'D', or None if not answered
+    is_correct = db.Column(db.Boolean, default=False)
+    marks_obtained = db.Column(db.Integer, default=0)
+    answered_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    attempt = db.relationship('OnlineExamAttempt', back_populates='answers')
+    question = db.relationship('OnlineQuestion', back_populates='student_answers')
+    
+    __table_args__ = (db.UniqueConstraint('attempt_id', 'question_id', name='unique_attempt_question'),)
+    
+    def __repr__(self):
+        return f'<OnlineStudentAnswer {self.id} - Question {self.question_id}>'

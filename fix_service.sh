@@ -20,7 +20,9 @@ Type=notify
 User=root
 WorkingDirectory=/var/www/saroyarsir
 Environment="PATH=/var/www/saroyarsir/venv/bin"
-ExecStart=/var/www/saroyarsir/venv/bin/gunicorn --workers 4 --bind 0.0.0.0:5000 --timeout 120 wsgi:app
+Environment="FLASK_ENV=production"
+Environment="PORT=8001"
+ExecStart=/var/www/saroyarsir/venv/bin/gunicorn --config gunicorn.conf.py wsgi:app
 Restart=always
 RestartSec=10
 

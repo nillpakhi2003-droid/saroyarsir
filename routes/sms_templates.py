@@ -106,7 +106,7 @@ def get_templates():
 @login_required
 @require_role('TEACHER', 'SUPER_USER')
 def update_template(template_type):
-    """Update SMS template (only for editable templates)"""
+    """Update SMS template permanently in database"""
     try:
         from services.sms_service import SMSService
         
@@ -135,21 +135,48 @@ def update_template(template_type):
             message = sms_service.truncate_message(message, max_sms)
             sms_stats = sms_service.calculate_sms_count(message)
         
-        # Store in session for immediate use
+        # Save to database permanently
+        current_user = get_current_user()
+        template_key = f"sms_template_{template_type}"
+        
+        # Check if template exists
+        template_setting = Settings.query.filter_by(key=template_key).first()
+        
+        if template_setting:
+            # Update existing template
+            template_setting.value = {'message': message}
+            template_setting.updated_by = current_user.id
+            template_setting.updated_at = datetime.utcnow()
+        else:
+            # Create new template
+            template_setting = Settings(
+                key=template_key,
+                value={'message': message},
+                description=f"SMS template for {template_type}",
+                category="sms_templates",
+                updated_by=current_user.id
+            )
+            db.session.add(template_setting)
+        
+        db.session.commit()
+        
+        # Also store in session for immediate use (backward compatibility)
         if 'custom_templates' not in session:
             session['custom_templates'] = {}
         
         session['custom_templates'][template_type] = message
         session.permanent = True
         
-        return success_response('Template updated successfully', {
+        return success_response('Template saved permanently to database', {
             'template_type': template_type,
             'message': message,
             'sms_stats': sms_stats,
-            'truncated': sms_stats['sms_count'] > max_sms
+            'truncated': sms_stats['sms_count'] > max_sms,
+            'saved_to_database': True
         })
         
     except Exception as e:
+        db.session.rollback()
         logger.error(f"Error updating SMS template: {e}")
         return error_response('Failed to update template', 500)
 

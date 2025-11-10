@@ -1,0 +1,518 @@
+<div x-data="onlineExamManagement()" class="space-y-6">
+    <!-- Add MathJax for scientific equations -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">Online Exam Management</h2>
+        <button @click="showCreateModal = true" class="btn-primary">
+            <i class="fas fa-plus mr-2"></i>
+            Create Online Exam
+        </button>
+    </div>
+
+    <!-- Exams List -->
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Questions</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <template x-for="exam in exams" :key="exam.id">
+                        <tr>
+                            <td class="px-6 py-4 text-sm font-medium text-gray-900" x-text="exam.title"></td>
+                            <td class="px-6 py-4 text-sm text-gray-500" x-text="exam.class_name"></td>
+                            <td class="px-6 py-4 text-sm text-gray-500" x-text="exam.duration + ' min'"></td>
+                            <td class="px-6 py-4 text-sm text-gray-500" x-text="exam.total_questions"></td>
+                            <td class="px-6 py-4">
+                                <span :class="exam.is_published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'" 
+                                      class="px-2 py-1 text-xs font-semibold rounded-full"
+                                      x-text="exam.is_published ? 'Published' : 'Draft'"></span>
+                            </td>
+                            <td class="px-6 py-4 text-sm space-x-2">
+                                <button @click="manageQuestions(exam)" class="text-blue-600 hover:text-blue-800" title="Manage Questions">
+                                    <i class="fas fa-list"></i>
+                                </button>
+                                <button @click="togglePublish(exam)" 
+                                        :class="exam.is_published ? 'text-orange-600 hover:text-orange-800' : 'text-green-600 hover:text-green-800'"
+                                        :title="exam.is_published ? 'Unpublish' : 'Publish'">
+                                    <i :class="exam.is_published ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                                </button>
+                                <button @click="editExam(exam)" class="text-indigo-600 hover:text-indigo-800" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button @click="deleteExam(exam.id)" class="text-red-600 hover:text-red-800" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="exams.length === 0">
+                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                            No online exams found. Create your first exam!
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Create/Edit Exam Modal -->
+    <div x-show="showCreateModal" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div @click="showCreateModal = false" class="fixed inset-0 bg-gray-500 bg-opacity-75"></div>
+            
+            <div class="bg-white rounded-lg overflow-hidden shadow-xl transform transition-all sm:max-w-lg w-full relative z-10">
+                <div class="bg-white px-6 py-4 border-b">
+                    <h3 class="text-lg font-medium text-gray-900">Create Online Exam</h3>
+                </div>
+                
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Exam Title</label>
+                        <input type="text" x-model="formData.title" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Class Name</label>
+                        <input type="text" x-model="formData.class_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Book Name</label>
+                        <input type="text" x-model="formData.book_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Chapter Name</label>
+                        <input type="text" x-model="formData.chapter_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Duration (minutes)</label>
+                            <input type="number" x-model="formData.duration" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Total Questions (max 40)</label>
+                            <input type="number" max="40" x-model="formData.total_questions" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <input type="checkbox" x-model="formData.allow_retake" id="allowRetake" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <label for="allowRetake" class="ml-2 block text-sm text-gray-700">Allow Retake</label>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 px-6 py-3 flex justify-end space-x-3">
+                    <button @click="showCreateModal = false" class="btn-secondary">Cancel</button>
+                    <button @click="createExam()" class="btn-primary">Create Exam</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Questions Modal -->
+    <div x-show="showQuestionsModal" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div @click="showQuestionsModal = false" class="fixed inset-0 bg-gray-500 bg-opacity-75"></div>
+            
+            <div class="bg-white rounded-lg overflow-hidden shadow-xl transform transition-all sm:max-w-4xl w-full relative z-10 max-h-screen overflow-y-auto">
+                <div class="bg-white px-6 py-4 border-b sticky top-0 z-10">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-medium text-gray-900">
+                            Manage Questions 
+                            <span class="text-sm text-gray-500" x-show="currentExam">
+                                - <span x-text="currentExam?.title"></span> 
+                                (<span x-text="questions.length"></span> questions)
+                            </span>
+                        </h3>
+                        <div class="space-x-2">
+                            <button @click="addQuestion()" class="btn-secondary">
+                                <i class="fas fa-plus mr-2"></i>Add One More
+                            </button>
+                            <button @click="saveAllQuestions()" class="btn-primary">
+                                <i class="fas fa-save mr-2"></i>Save All Questions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-6 space-y-4">
+                    <template x-for="(question, index) in questions" :key="index">
+                        <div class="border rounded-lg p-4 space-y-3 bg-gray-50">
+                            <div class="flex justify-between items-center">
+                                <label class="block text-sm font-bold text-gray-900">Question <span x-text="index + 1"></span></label>
+                                <button @click="removeQuestion(index)" class="text-red-600 hover:text-red-800 text-sm">
+                                    <i class="fas fa-times"></i> Remove
+                                </button>
+                            </div>
+                            <div>
+                                <textarea x-model="question.question_text" rows="3" 
+                                    placeholder="Enter question text (supports Bangla and LaTeX: use $$ for equations, e.g., $$x^2 + y^2 = z^2$$)"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 font-bangla"></textarea>
+                                <p class="text-xs text-gray-500 mt-1">Tip: For equations use $$...$$, e.g., $$E=mc^2$$</p>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700">Option A</label>
+                                    <input type="text" x-model="question.option_a" 
+                                        placeholder="Option A (supports Bangla & equations)"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 font-bangla">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700">Option B</label>
+                                    <input type="text" x-model="question.option_b" 
+                                        placeholder="Option B (supports Bangla & equations)"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 font-bangla">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700">Option C</label>
+                                    <input type="text" x-model="question.option_c" 
+                                        placeholder="Option C (supports Bangla & equations)"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 font-bangla">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700">Option D</label>
+                                    <input type="text" x-model="question.option_d" 
+                                        placeholder="Option D (supports Bangla & equations)"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 font-bangla">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Correct Answer</label>
+                                <select x-model="question.correct_answer" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="A">A</option>
+                                    <option value="B">B</option>
+                                    <option value="C">C</option>
+                                    <option value="D">D</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Explanation (Optional)</label>
+                                <textarea x-model="question.explanation" rows="2" 
+                                    placeholder="Explain why this is the correct answer..."
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <div x-show="questions.length === 0" class="text-center text-gray-500 py-8">
+                        No questions yet. Click "Add One More" to start!
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 px-6 py-3 flex justify-between sticky bottom-0">
+                    <button @click="showQuestionsModal = false" class="btn-secondary">Close</button>
+                    <button @click="saveAllQuestions()" class="btn-primary">
+                        <i class="fas fa-save mr-2"></i>Save All & Publish
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function onlineExamManagement() {
+    return {
+        exams: [],
+        questions: [],
+        showCreateModal: false,
+        showQuestionsModal: false,
+        currentExam: null,
+        formData: {
+            title: '',
+            class_name: '',
+            book_name: '',
+            chapter_name: '',
+            duration: 30,
+            total_questions: 20,
+            allow_retake: true
+        },
+
+        init() {
+            this.loadExams();
+        },
+
+        async loadExams() {
+            try {
+                const response = await fetch('/api/online-exams');
+                const data = await response.json();
+                if (data.success) {
+                    this.exams = data.data;
+                }
+            } catch (error) {
+                console.error('Failed to load exams:', error);
+            }
+        },
+
+        async createExam() {
+            try {
+                const response = await fetch('/api/online-exams', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.formData)
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('Exam created successfully! Now add questions.');
+                    this.showCreateModal = false;
+                    
+                    // Auto-generate empty question templates
+                    const numQuestions = parseInt(this.formData.total_questions) || 20;
+                    this.currentExam = data.data;
+                    this.questions = [];
+                    for (let i = 0; i < numQuestions; i++) {
+                        this.questions.push({
+                            question_text: '',
+                            option_a: '',
+                            option_b: '',
+                            option_c: '',
+                            option_d: '',
+                            correct_answer: 'A',
+                            explanation: ''
+                        });
+                    }
+                    
+                    // Open questions modal immediately
+                    this.showQuestionsModal = true;
+                    
+                    this.loadExams();
+                    // Reset form
+                    this.formData = {
+                        title: '',
+                        class_name: '',
+                        book_name: '',
+                        chapter_name: '',
+                        duration: 30,
+                        total_questions: 20,
+                        allow_retake: true
+                    };
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Failed to create exam:', error);
+                alert('Failed to create exam');
+            }
+        },
+
+        async manageQuestions(exam) {
+            this.currentExam = exam;
+            this.showQuestionsModal = true;
+            await this.loadQuestions(exam.id);
+        },
+
+        async loadQuestions(examId) {
+            try {
+                const response = await fetch(`/api/online-exams/${examId}`);
+                const data = await response.json();
+                if (data.success) {
+                    this.questions = data.data.questions || [];
+                }
+            } catch (error) {
+                console.error('Failed to load questions:', error);
+            }
+        },
+
+        addQuestion() {
+            this.questions.push({
+                question_text: '',
+                option_a: '',
+                option_b: '',
+                option_c: '',
+                option_d: '',
+                correct_answer: 'A',
+                explanation: ''
+            });
+        },
+
+        removeQuestion(index) {
+            if (confirm('Remove this question?')) {
+                this.questions.splice(index, 1);
+            }
+        },
+
+        async saveAllQuestions() {
+            try {
+                let savedCount = 0;
+                let errorCount = 0;
+                
+                for (const question of this.questions) {
+                    // Skip empty questions
+                    if (!question.question_text || !question.option_a || !question.option_b) {
+                        continue;
+                    }
+
+                    const url = question.id 
+                        ? `/api/online-exams/${this.currentExam.id}/questions/${question.id}`
+                        : `/api/online-exams/${this.currentExam.id}/questions`;
+                    
+                    const method = question.id ? 'PUT' : 'POST';
+                    
+                    const response = await fetch(url, {
+                        method: method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(question)
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        savedCount++;
+                    } else {
+                        errorCount++;
+                    }
+                }
+                
+                if (savedCount > 0) {
+                    // Auto-publish the exam
+                    const publishResponse = await fetch(`/api/online-exams/${this.currentExam.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ is_published: true })
+                    });
+                    
+                    const publishData = await publishResponse.json();
+                    
+                    if (publishData.success) {
+                        alert(`Successfully saved ${savedCount} question(s) and published the exam! Students can now take it.`);
+                    } else {
+                        alert(`Saved ${savedCount} question(s) but failed to publish. You can publish manually.`);
+                    }
+                    
+                    await this.loadQuestions(this.currentExam.id);
+                    await this.loadExams();
+                    this.showQuestionsModal = false;
+                }
+                
+                if (errorCount > 0) {
+                    alert(`${errorCount} question(s) failed to save. Please check and try again.`);
+                }
+            } catch (error) {
+                console.error('Failed to save questions:', error);
+                alert('Failed to save questions');
+            }
+        },
+
+        async saveQuestion(question) {
+            try {
+                if (!question.question_text || !question.option_a || !question.option_b || !question.option_c || !question.option_d) {
+                    alert('Please fill all question fields');
+                    return;
+                }
+
+                const url = question.id 
+                    ? `/api/online-exams/${this.currentExam.id}/questions/${question.id}`
+                    : `/api/online-exams/${this.currentExam.id}/questions`;
+                
+                const method = question.id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(question)
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('Question saved successfully!');
+                    await this.loadQuestions(this.currentExam.id);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Failed to save question:', error);
+                alert('Failed to save question');
+            }
+        },
+
+        async deleteQuestion(questionId, index) {
+            if (!questionId) {
+                // Not saved yet, just remove from array
+                this.questions.splice(index, 1);
+                return;
+            }
+
+            if (!confirm('Delete this question?')) return;
+
+            try {
+                const response = await fetch(`/api/online-exams/${this.currentExam.id}/questions/${questionId}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('Question deleted successfully!');
+                    await this.loadQuestions(this.currentExam.id);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Failed to delete question:', error);
+                alert('Failed to delete question');
+            }
+        },
+
+        async deleteExam(examId) {
+            if (!confirm('Delete this exam? This will delete all questions too.')) return;
+
+            try {
+                const response = await fetch(`/api/online-exams/${examId}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('Exam deleted successfully!');
+                    this.loadExams();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Failed to delete exam:', error);
+                alert('Failed to delete exam');
+            }
+        },
+
+        async togglePublish(exam) {
+            const action = exam.is_published ? 'unpublish' : 'publish';
+            if (!confirm(`Are you sure you want to ${action} this exam?`)) return;
+
+            try {
+                const response = await fetch(`/api/online-exams/${exam.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_published: !exam.is_published })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert(`Exam ${action}ed successfully!`);
+                    this.loadExams();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                console.error(`Failed to ${action} exam:`, error);
+                alert(`Failed to ${action} exam`);
+            }
+        },
+
+        editExam(exam) {
+            this.formData = { ...exam };
+            this.showCreateModal = true;
+        }
+    };
+}
+</script>
