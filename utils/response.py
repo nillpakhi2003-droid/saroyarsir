@@ -148,7 +148,9 @@ def serialize_fee(fee):
     late_fee = getattr(fee, 'late_fee', 0) or 0
     discount = getattr(fee, 'discount', 0) or 0
     exam_fee = getattr(fee, 'exam_fee', 0) or 0
-    other_fee = getattr(fee, 'other_fee', 0) or 0
+    # Map database column 'others_fee' to API field 'other_fee'
+    other_fee = getattr(fee, 'others_fee', 0) or 0
+    fee_data['other_fee'] = float(other_fee)  # Export as 'other_fee' in API response
     total_amount = amount + late_fee + exam_fee + other_fee - discount
     fee_data['total_amount'] = float(total_amount)
     due_date = getattr(fee, 'due_date', None)

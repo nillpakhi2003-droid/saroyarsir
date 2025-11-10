@@ -250,7 +250,7 @@ def create_fee():
             late_fee=late_fee,
             discount=discount,
             exam_fee=exam_fee,
-            other_fee=other_fee,
+            others_fee=other_fee,
             notes=data.get('notes', '').strip() if data.get('notes') else None,
             status=FeeStatus.PENDING
         )
@@ -296,7 +296,9 @@ def update_fee(fee_id):
                         if field == 'discount' and value > fee.amount:
                             return error_response('Discount cannot exceed fee amount', 400)
                         
-                        setattr(fee, field, value)
+                        # Map other_fee to others_fee for database column
+                        db_field = 'others_fee' if field == 'other_fee' else field
+                        setattr(fee, db_field, value)
                     except (ValueError, TypeError):
                         return error_response(f'Invalid {field} format', 400)
                 elif field == 'due_date':
@@ -469,7 +471,7 @@ def bulk_create_fees():
                 late_fee=Decimal(str(data.get('late_fee', '0.00'))),
                 discount=Decimal(str(data.get('discount', '0.00'))),
                 exam_fee=Decimal(str(data.get('exam_fee', '0.00'))),
-                other_fee=Decimal(str(data.get('other_fee', '0.00'))),
+                others_fee=Decimal(str(data.get('other_fee', '0.00'))),
                 notes=data.get('notes', '').strip() if data.get('notes') else None,
                 status=FeeStatus.PENDING
             )
@@ -575,7 +577,7 @@ def create_monthly_fees(batch_id):
                 amount=amount,
                 due_date=due_date,
                 exam_fee=Decimal(str(data.get('exam_fee', '0.00'))),
-                other_fee=Decimal(str(data.get('other_fee', '0.00'))),
+                others_fee=Decimal(str(data.get('other_fee', '0.00'))),
                 notes=f'Monthly fee for {calendar.month_name[month]} {year}',
                 status=FeeStatus.PENDING
             )
@@ -982,7 +984,7 @@ def save_monthly_fee_noauth():
                     amount=amount,
                     due_date=due_date,
                     exam_fee=Decimal(str(data.get('exam_fee', '0.00'))),
-                    other_fee=Decimal(str(data.get('other_fee', '0.00'))),
+                    others_fee=Decimal(str(data.get('other_fee', '0.00'))),
                     notes=f'Monthly fee for {calendar.month_name[month]} {year}',
                     status=FeeStatus.PENDING
                 )
