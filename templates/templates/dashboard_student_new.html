@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta id="userDataMeta" data-json='{{ user | tojson | safe }}'>
 <style>
     .font-bangla {
         font-family: 'Noto Sans Bengali', sans-serif;
@@ -40,7 +41,7 @@
                 <i class="fas fa-clipboard-list mr-3 h-6 w-6"></i>
                 Monthly Exams
             </a>
-            <a href="#online-exams" data-section="online-exams" class="nav-item group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 mb-1">
+            <a href="#online-exams" data-section="online-exams" class="nav-item group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 mb-1" data-reload="exams">
                 <i class="fas fa-laptop mr-3 h-6 w-6"></i>
                 Online Exam
             </a>
@@ -212,6 +213,20 @@ function showSection(sectionName) {
             console.error('  → Check: include partials/student_monthly_exams.html');
         }
     } 
+    else if (sectionName === 'online-exams') {
+        console.log('📝 Online Exams Section');
+        console.log('  - window.studentOnlineExamsComp exists?', !!window.studentOnlineExamsComp);
+        if (window.studentOnlineExamsComp) {
+            if (!window.studentOnlineExamsComp.exams || window.studentOnlineExamsComp.exams.length === 0) {
+                console.log('  → Calling loadExams() to fetch published exams');
+                try { window.studentOnlineExamsComp.loadExams(); } catch (err) { console.error('❌ Error calling loadExams():', err); }
+            } else {
+                console.log('  ✓ Exams already loaded:', window.studentOnlineExamsComp.exams.length);
+            }
+        } else {
+            console.error('❌ studentOnlineExamsComp not found. Alpine init may have failed or partial not loaded.');
+        }
+    }
     else if (sectionName === 'online-resources') {
         console.log('📚 Online Resources Section');
         console.log('  - window.loadDocuments type:', typeof window.loadDocuments);
@@ -278,7 +293,18 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('=== STUDENT DASHBOARD LOADED ===');
     
     // Store user data from server session to localStorage for frontend components
-    const userData = {{ user | tojson | safe }};
+    // Jinja injects JSON for user; wrap in try/catch in case of escaping
+        const userDataElement = document.getElementById('userDataMeta');
+        let userData = null;
+        if (userDataElement) {
+            try {
+                userData = JSON.parse(userDataElement.getAttribute('data-json'));
+            } catch (e) {
+                console.error('Failed to parse user data JSON from meta tag', e);
+            }
+        } else {
+            console.warn('⚠️ userDataMeta meta tag not found');
+        }
     if (userData && userData.id) {
         console.log('💾 Storing user data in localStorage:', userData);
         localStorage.setItem('user', JSON.stringify(userData));
