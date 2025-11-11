@@ -23,6 +23,7 @@ def get_exams():
     """Get all online exams (teachers see all, students see only published)"""
     try:
         current_user = get_current_user()
+        current_app.logger.info(f"[online_exams.get_exams] user_id={current_user.id} role={current_user.role}")
         
         if current_user.role in [UserRole.TEACHER, UserRole.SUPER_USER]:
             # Teachers see all exams
@@ -30,6 +31,7 @@ def get_exams():
         else:
             # Students see only published exams
             exams = OnlineExam.query.filter_by(is_published=True, is_active=True).order_by(OnlineExam.created_at.desc()).all()
+        current_app.logger.info(f"[online_exams.get_exams] total_fetched={len(exams)} for role={current_user.role}")
         
         exams_data = []
         for exam in exams:
@@ -75,10 +77,11 @@ def get_exams():
             
             exams_data.append(exam_dict)
         
-        return success_response('Exams retrieved successfully', exams_data)
+    current_app.logger.info(f"[online_exams.get_exams] returning count={len(exams_data)}")
+    return success_response('Exams retrieved successfully', exams_data)
     
     except Exception as e:
-        current_app.logger.error(f'Error getting exams: {str(e)}')
+    current_app.logger.error(f'[online_exams.get_exams] Error: {str(e)}')
         return error_response(f'Failed to get exams: {str(e)}', 500)
 
 @online_exams_bp.route('', methods=['POST'])
