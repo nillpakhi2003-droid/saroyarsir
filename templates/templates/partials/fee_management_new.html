@@ -467,6 +467,7 @@ function feeManagerNew() {
             const changes = Array.from(this.changedFees);
             let successCount = 0;
             let errorCount = 0;
+            let errorDetails = [];
             
             console.log(`Saving ${changes.length} changed fees...`);
             
@@ -476,38 +477,44 @@ function feeManagerNew() {
                 const feeData = this.fees[studentId][monthKey];
                 
                 try {
+                    const payload = {
+                        student_id: studentId,
+                        batch_id: parseInt(this.selectedBatch),
+                        month: month,
+                        year: parseInt(this.selectedYear),
+                        amount: feeData.amount,
+                        exam_fee: this.fees[studentId].exam_fee || 0,
+                        other_fee: this.fees[studentId].other_fee || 0
+                    };
+                    
+                    console.log(`Saving fee:`, payload);
+                    
                     const response = await fetch('/api/fees/save-monthly', {
                         method: 'POST',
                         credentials: 'same-origin',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            student_id: studentId,
-                            batch_id: parseInt(this.selectedBatch),
-                            month: month,
-                            year: parseInt(this.selectedYear),
-                            amount: feeData.amount,
-                            exam_fee: this.fees[studentId].exam_fee || 0,
-                            other_fee: this.fees[studentId].other_fee || 0
-                        })
+                        body: JSON.stringify(payload)
                     });
                     
                     if (response.ok) {
                         const data = await response.json();
-                        console.log(`Saved fee for student ${studentId}, month ${month}:`, data);
+                        console.log(`✅ Saved fee for student ${studentId}, month ${month}:`, data);
                         
                         // Update fee_id if this was a new fee
-                        if (data.data && data.data.fee_id) {
-                            this.fees[studentId][monthKey].fee_id = data.data.fee_id;
+                        if (data.data && data.data.fee && data.data.fee.fee_id) {
+                            this.fees[studentId][monthKey].fee_id = data.data.fee.fee_id;
                         }
                         
                         successCount++;
                     } else {
-                        const errorData = await response.json();
-                        console.error(`Failed to save fee for student ${studentId}, month ${month}:`, errorData);
+                        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+                        console.error(`❌ Failed to save fee for student ${studentId}, month ${month}:`, errorData);
+                        errorDetails.push(`Month ${month}: ${errorData.message || 'Unknown error'}`);
                         errorCount++;
                     }
                 } catch (err) {
-                    console.error(`Error saving fee for student ${studentId}, month ${month}:`, err);
+                    console.error(`❌ Error saving fee for student ${studentId}, month ${month}:`, err);
+                    errorDetails.push(`Month ${month}: ${err.message}`);
                     errorCount++;
                 }
             }
@@ -519,7 +526,8 @@ function feeManagerNew() {
                 this.message = `Successfully saved ${successCount} fee(s)`;
                 setTimeout(() => this.message = '', 3000);
             } else {
-                this.error = `Saved ${successCount} fee(s), ${errorCount} failed`;
+                this.error = `Saved ${successCount} fee(s), ${errorCount} failed. ${errorDetails.join('; ')}`;
+                console.error('Failed saves:', errorDetails);
             }
         }
     };
