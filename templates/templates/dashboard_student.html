@@ -399,6 +399,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('examsList').innerHTML = loadingHtml;
                 await loadExams();
                 break;
+            case 'documents':
+                // Load online resources (documents)
+                if (typeof loadDocuments === 'function') {
+                    console.log('📚 Loading online resources...');
+                    loadDocuments();
+                } else {
+                    console.error('❌ loadDocuments function not found');
+                }
+                break;
             case 'results':
                 document.getElementById('resultsList').innerHTML = loadingHtml;
                 await loadResults();
