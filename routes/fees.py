@@ -742,6 +742,8 @@ def get_monthly_fees():
                 'month': month,
                 'year': year,
                 'amount': float(fee.amount),
+                'exam_fee': float(fee.exam_fee) if fee.exam_fee else 0,
+                'other_fee': float(fee.others_fee) if fee.others_fee else 0,
                 'status': fee.status.value,
                 'due_date': fee.due_date.isoformat() if fee.due_date else None,
                 'paid_date': fee.paid_date.isoformat() if fee.paid_date else None
@@ -761,6 +763,8 @@ def get_monthly_fees():
                         'month': month,
                         'year': year,
                         'amount': 0,
+                        'exam_fee': 0,
+                        'other_fee': 0,
                         'status': 'pending'
                     })
         
@@ -966,6 +970,8 @@ def save_monthly_fee_noauth():
                 return success_response('Fee deleted successfully', {'deleted': True})
             else:
                 existing_fee.amount = amount
+                existing_fee.exam_fee = Decimal(str(data.get('exam_fee', '0.00')))
+                existing_fee.others_fee = Decimal(str(data.get('other_fee', '0.00')))
                 existing_fee.updated_at = datetime.utcnow()
                 db.session.commit()
                 fee_data = {
@@ -973,7 +979,9 @@ def save_monthly_fee_noauth():
                     'student_id': existing_fee.user_id,
                     'month': month,
                     'year': year,
-                    'amount': float(existing_fee.amount)
+                    'amount': float(existing_fee.amount),
+                    'exam_fee': float(existing_fee.exam_fee),
+                    'other_fee': float(existing_fee.others_fee)
                 }
                 return success_response('Fee updated successfully', {'fee': fee_data})
         else:
@@ -995,7 +1003,9 @@ def save_monthly_fee_noauth():
                     'student_id': fee.user_id,
                     'month': month,
                     'year': year,
-                    'amount': float(fee.amount)
+                    'amount': float(fee.amount),
+                    'exam_fee': float(fee.exam_fee),
+                    'other_fee': float(fee.others_fee)
                 }
                 return success_response('Fee created successfully', {'fee': fee_data}, 201)
             else:
@@ -1044,33 +1054,48 @@ def get_monthly_fees_noauth():
                 'month': month,
                 'year': year,
                 'amount': float(fee.amount),
+                'exam_fee': float(fee.exam_fee) if fee.exam_fee else 0,
+                'other_fee': float(fee.others_fee) if fee.others_fee else 0,
                 'status': fee.status.value,
                 'due_date': fee.due_date.isoformat() if fee.due_date else None,
                 'paid_date': fee.paid_date.isoformat() if fee.paid_date else None
             }
         
-        # Format response in the expected format
-        result_fees = []
+        # Format response in the expected nested format: { fees: [{ student_id, months: { '1': {...}, '2': {...} } }] }
+        students_fees_data = []
         for student in students:
+            student_months = {}
             for month in range(1, 13):
                 key = f"{student.id}_{month}"
                 if key in fees_lookup:
-                    result_fees.append(fees_lookup[key])
+                    fee_data = fees_lookup[key]
+                    student_months[str(month)] = {
+                        'fee_id': fee_data['fee_id'],
+                        'amount': fee_data['amount'],
+                        'exam_fee': fee_data['exam_fee'],
+                        'other_fee': fee_data['other_fee'],
+                        'status': fee_data['status'],
+                        'due_date': fee_data['due_date'],
+                        'paid_date': fee_data['paid_date']
+                    }
                 else:
-                    # Return empty/zero entry for months without fees
-                    result_fees.append({
+                    student_months[str(month)] = {
                         'fee_id': None,
-                        'student_id': student.id,
-                        'month': month,
-                        'year': year,
                         'amount': 0,
+                        'exam_fee': 0,
+                        'other_fee': 0,
                         'status': 'pending',
                         'due_date': None,
                         'paid_date': None
-                    })
+                    }
+            
+            students_fees_data.append({
+                'student_id': student.id,
+                'months': student_months
+            })
         
         return success_response('Monthly fees retrieved successfully', {
-            'fees': result_fees,
+            'fees': students_fees_data,
             'batch_id': batch_id,
             'year': year,
             'student_count': len(students)
