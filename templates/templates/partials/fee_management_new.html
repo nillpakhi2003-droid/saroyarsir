@@ -261,6 +261,9 @@ function feeManagerNew() {
                         this.fees = {};
                         this.students.forEach(student => {
                             this.fees[student.student_id] = student.months;
+                            // Add student-level exam_fee and others_fee
+                            this.fees[student.student_id].exam_fee = student.exam_fee || 0;
+                            this.fees[student.student_id].other_fee = student.other_fee || 0;
                         });
                         
                         this.message = `Loaded fees for ${this.students.length} students`;
@@ -459,32 +462,47 @@ function feeManagerNew() {
             
             console.log(`Monthly changes: ${monthlyChanges.length}, Extra fee changes: ${extraFeeChanges.length}`);
             
-            // Process extra fee changes: update all existing monthly fees for affected students
+            // First, save student-level extra fees separately
             const studentsWithExtraFees = new Set();
             for (const key of extraFeeChanges) {
                 const studentId = parseInt(key.split('_')[0]);
                 studentsWithExtraFees.add(studentId);
             }
             
-            // For each student with exam_fee/other_fee changes, find their existing monthly fees and mark them
             for (const studentId of studentsWithExtraFees) {
-                if (this.fees[studentId]) {
-                    // Find all months with existing fees (fee_id exists or amount > 0)
-                    for (let month = 1; month <= 12; month++) {
-                        const monthKey = String(month);
-                        if (this.fees[studentId][monthKey] && 
-                            (this.fees[studentId][monthKey].fee_id || this.fees[studentId][monthKey].amount > 0)) {
-                            const changeKey = `${studentId}_${month}`;
-                            if (!monthlyChanges.includes(changeKey)) {
-                                monthlyChanges.push(changeKey);
-                            }
-                        }
+                try {
+                    const payload = {
+                        student_id: studentId,
+                        exam_fee: this.fees[studentId].exam_fee || 0,
+                        other_fee: this.fees[studentId].other_fee || 0
+                    };
+                    
+                    console.log(`Saving student-level extra fees:`, payload);
+                    
+                    const response = await fetch('/api/fees/save-student-extra-fees', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (response.ok) {
+                        console.log(`✅ Saved extra fees for student ${studentId}`);
+                        successCount++;
+                    } else {
+                        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+                        console.error(`❌ Failed to save extra fees for student ${studentId}:`, errorData);
+                        errorDetails.push(`Student ${studentId} extra fees: ${errorData.message || 'Unknown error'}`);
+                        errorCount++;
                     }
+                } catch (err) {
+                    console.error(`❌ Error saving extra fees for student ${studentId}:`, err);
+                    errorDetails.push(`Student ${studentId} extra fees: ${err.message}`);
+                    errorCount++;
                 }
             }
             
-            console.log(`After processing extra fees, total monthly changes: ${monthlyChanges.length}`);
-            
+            // Now save monthly fees (without exam_fee/other_fee in payload)
             for (const key of monthlyChanges) {
                 const [studentId, month] = key.split('_').map(Number);
                 const monthKey = String(month);
@@ -509,9 +527,8 @@ function feeManagerNew() {
                         batch_id: parseInt(this.selectedBatch),
                         month: month,
                         year: parseInt(this.selectedYear),
-                        amount: feeData.amount || 0,
-                        exam_fee: this.fees[studentId].exam_fee || 0,
-                        other_fee: this.fees[studentId].other_fee || 0
+                        amount: feeData.amount || 0
+                        // exam_fee and other_fee are saved separately now
                     };
                     
                     console.log(`Saving monthly fee:`, payload);

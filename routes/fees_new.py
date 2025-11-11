@@ -112,6 +112,8 @@ def load_monthly_fees():
             student_data = {
                 'student_id': student.id,
                 'student_name': student.full_name,
+                'exam_fee': float(student.exam_fee) if hasattr(student, 'exam_fee') and student.exam_fee else 0,
+                'other_fee': float(student.others_fee) if hasattr(student, 'others_fee') and student.others_fee else 0,
                 'months': {}
             }
             

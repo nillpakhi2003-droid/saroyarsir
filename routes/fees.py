@@ -1183,3 +1183,40 @@ def get_my_fees():
         
     except Exception as e:
         return error_response(f'Failed to get student fees: {str(e)}', 500)
+
+
+@fees_bp.route('/save-student-extra-fees', methods=['POST'])
+def save_student_extra_fees_noauth():
+    """
+    Save student-level exam_fee and others_fee (not tied to months)
+    No authentication required for teacher dashboard
+    """
+    try:
+        data = request.get_json()
+        student_id = data.get('student_id')
+        exam_fee = data.get('exam_fee', 0)
+        other_fee = data.get('other_fee', 0)
+        
+        if not student_id:
+            return error_response('Student ID is required', 400)
+        
+        # Find student
+        student = User.query.filter_by(id=student_id, role=UserRole.STUDENT).first()
+        if not student:
+            return error_response('Student not found', 404)
+        
+        # Update student's exam_fee and others_fee
+        student.exam_fee = Decimal(str(exam_fee))
+        student.others_fee = Decimal(str(other_fee))
+        
+        db.session.commit()
+        
+        return success_response('Student extra fees saved successfully', {
+            'student_id': student_id,
+            'exam_fee': float(student.exam_fee),
+            'others_fee': float(student.others_fee)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to save student extra fees: {str(e)}', 500)
