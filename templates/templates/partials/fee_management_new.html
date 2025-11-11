@@ -459,6 +459,32 @@ function feeManagerNew() {
             
             console.log(`Monthly changes: ${monthlyChanges.length}, Extra fee changes: ${extraFeeChanges.length}`);
             
+            // Process extra fee changes: update all existing monthly fees for affected students
+            const studentsWithExtraFees = new Set();
+            for (const key of extraFeeChanges) {
+                const studentId = parseInt(key.split('_')[0]);
+                studentsWithExtraFees.add(studentId);
+            }
+            
+            // For each student with exam_fee/other_fee changes, find their existing monthly fees and mark them
+            for (const studentId of studentsWithExtraFees) {
+                if (this.fees[studentId]) {
+                    // Find all months with existing fees (fee_id exists or amount > 0)
+                    for (let month = 1; month <= 12; month++) {
+                        const monthKey = String(month);
+                        if (this.fees[studentId][monthKey] && 
+                            (this.fees[studentId][monthKey].fee_id || this.fees[studentId][monthKey].amount > 0)) {
+                            const changeKey = `${studentId}_${month}`;
+                            if (!monthlyChanges.includes(changeKey)) {
+                                monthlyChanges.push(changeKey);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            console.log(`After processing extra fees, total monthly changes: ${monthlyChanges.length}`);
+            
             for (const key of monthlyChanges) {
                 const [studentId, month] = key.split('_').map(Number);
                 const monthKey = String(month);
