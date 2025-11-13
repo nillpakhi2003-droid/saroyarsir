@@ -23,9 +23,27 @@ fi
 
 cd $APP_DIR
 
+# Stash any local changes
+if [ -n "$(git status --porcelain)" ]; then
+    echo "⚠️  Stashing local changes..."
+    git stash
+fi
+
 # Pull latest code
-echo "📥 Pulling latest code..."
-git pull origin main
+echo "📥 Pulling latest code from GitHub..."
+git fetch origin
+git pull --rebase origin main
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}❌ Git pull failed${NC}"
+    echo "Check status: cd $APP_DIR && git status"
+    exit 1
+fi
+
+# Restore stashed changes if any
+if git stash list | grep -q "stash@{0}"; then
+    git stash pop 2>/dev/null || echo "⚠️  Could not restore stashed changes"
+fi
 
 # Restart service
 echo "🔄 Restarting service..."

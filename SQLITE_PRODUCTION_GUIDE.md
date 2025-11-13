@@ -1,8 +1,42 @@
 # SQLite Production - Complete Deployment Guide
 
+## 🎬 First-Time VPS Setup
+
+**Important:** Run this ONLY on first deployment to VPS:
+
+```bash
+# Download and run setup script
+wget https://raw.githubusercontent.com/sa5613675-jpg/saroyarsir/main/setup_vps_first_time.sh
+sudo chmod +x setup_vps_first_time.sh
+sudo ./setup_vps_first_time.sh
+```
+
+This will:
+- Install system dependencies (Python, Nginx, SQLite, etc.)
+- Clone repository from GitHub
+- Set up firewall
+- Configure permissions
+
+## ✅ Pre-Deployment Check
+
+**Always run before deploying** to verify GitHub connection:
+
+```bash
+cd /var/www/saroyarsir
+./check_before_deploy.sh
+```
+
+This shows:
+- Git repository status
+- GitHub connectivity
+- Uncommitted changes
+- Commits behind/ahead
+- Service status
+- Database status
+
 ## 🚀 Quick Deploy (Most Common Use)
 
-For regular code updates:
+For regular code updates from GitHub:
 
 ```bash
 cd /var/www/saroyarsir
@@ -10,6 +44,12 @@ sudo ./quick_deploy.sh
 ```
 
 ⏱️ Takes ~10 seconds
+
+**What it does:**
+1. Stashes any local changes
+2. Pulls latest code from GitHub
+3. Restarts service
+4. Verifies deployment
 
 ## 🔧 Full Production Deployment
 
@@ -248,6 +288,46 @@ ls -lth /var/www/saroyarsir/backups/daily/ | head -20
 ```
 
 ## 🐛 Troubleshooting
+
+### Git Pull Fails on VPS
+
+```bash
+# Check repository status
+cd /var/www/saroyarsir
+git status
+
+# Check for conflicts
+git diff
+
+# If you have local changes you want to keep
+git stash
+git pull origin main
+git stash pop
+
+# If you want to discard local changes
+git reset --hard HEAD
+git pull origin main
+
+# If pull still fails
+git fetch origin
+git reset --hard origin/main
+```
+
+### GitHub Authentication Issues
+
+```bash
+# Test GitHub connection
+ssh -T git@github.com
+
+# If using HTTPS, switch to SSH
+cd /var/www/saroyarsir
+git remote set-url origin git@github.com:sa5613675-jpg/saroyarsir.git
+
+# Or set up SSH key
+ssh-keygen -t ed25519 -C "your_email@example.com"
+cat ~/.ssh/id_ed25519.pub
+# Add this key to GitHub: Settings → SSH Keys
+```
 
 ### Service Won't Start
 

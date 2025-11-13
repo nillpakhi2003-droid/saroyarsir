@@ -65,8 +65,16 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/smartgardenhub_${TIMESTAMP}.db"
 
 if [ -f "$DB_FILE" ]; then
+    # Create backup with verification
     cp "$DB_FILE" "$BACKUP_FILE"
-    print_success "Database backed up to: $BACKUP_FILE"
+    
+    # Verify backup integrity
+    if sqlite3 "$BACKUP_FILE" "PRAGMA integrity_check;" | grep -q "ok"; then
+        print_success "Database backed up to: $BACKUP_FILE"
+    else
+        print_error "Backup verification failed"
+        exit 1
+    fi
     
     # Keep only last 10 backups
     cd $BACKUP_DIR
@@ -76,18 +84,40 @@ else
     print_warning "No existing database found - fresh installation"
 fi
 
-print_section "Step 3: Pulling Latest Code"
+print_section "Step 3: Pulling Latest Code from GitHub"
 cd $APP_DIR
+
+# Stash any local changes to avoid conflicts
+if [ -n "$(git status --porcelain)" ]; then
+    print_warning "Stashing local changes..."
+    git stash
+fi
+
+# Fetch latest changes
 git fetch origin
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 print_warning "Current branch: $CURRENT_BRANCH"
 
-git pull origin $CURRENT_BRANCH
+# Pull with rebase to avoid merge commits
+git pull --rebase origin $CURRENT_BRANCH
+
+if [ $? -ne 0 ]; then
+    print_error "Git pull failed - may need manual intervention"
+    print_warning "Run: cd $APP_DIR && git status"
+    exit 1
+fi
+
 print_success "Code updated to latest version"
 
 # Show last commit
 LAST_COMMIT=$(git log -1 --pretty=format:"%h - %s (%ar)")
 echo "Last commit: $LAST_COMMIT"
+
+# Pop stash if we stashed changes
+if git stash list | grep -q "stash@{0}"; then
+    print_warning "Attempting to restore local changes..."
+    git stash pop || print_warning "Could not restore stashed changes - check manually"
+fi
 
 print_section "Step 4: Setting Up Python Virtual Environment"
 if [ ! -d "$VENV_DIR" ]; then
