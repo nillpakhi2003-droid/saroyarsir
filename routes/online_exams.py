@@ -10,6 +10,7 @@ from utils.auth import login_required, get_current_user, require_role
 from utils.response import success_response, error_response
 from datetime import datetime, timedelta
 from sqlalchemy import func, and_, or_
+from sqlalchemy.orm import joinedload
 
 online_exams_bp = Blueprint('online_exams', __name__, url_prefix='/api/online-exams')
 
@@ -569,7 +570,8 @@ def submit_exam(attempt_id):
     """Submit exam and calculate results"""
     try:
         current_user = get_current_user()
-        attempt = OnlineExamAttempt.query.get(attempt_id)
+        # Eager load exam to avoid lazy loading issues
+        attempt = OnlineExamAttempt.query.options(joinedload(OnlineExamAttempt.exam)).get(attempt_id)
         
         if not attempt:
             return error_response('Attempt not found', 404)
@@ -621,6 +623,13 @@ def submit_exam(attempt_id):
                 )
                 db.session.add(student_answer)
         
+        # Get pass percentage from exam (with safety check)
+        if not attempt.exam:
+            current_app.logger.error(f'Exam not found for attempt {attempt_id}')
+            return error_response('Exam data not found', 500)
+        
+        pass_percentage = attempt.exam.pass_percentage
+        
         # Update attempt
         attempt.is_submitted = True
         attempt.submitted_at = datetime.utcnow()
@@ -628,10 +637,15 @@ def submit_exam(attempt_id):
         attempt.score = total_score
         attempt.total_marks = total_marks
         attempt.percentage = (total_score / total_marks * 100) if total_marks > 0 else 0
-        attempt.is_passed = attempt.percentage >= attempt.exam.pass_percentage
+        attempt.is_passed = attempt.percentage >= pass_percentage
         attempt.auto_submitted = auto_submit
         
         db.session.commit()
+        
+        # Format time_taken for display
+        minutes = time_taken // 60
+        seconds = time_taken % 60
+        time_taken_display = f"{minutes}m {seconds}s"
         
         return success_response('Exam submitted successfully', {
             'attempt_id': attempt.id,
@@ -639,7 +653,7 @@ def submit_exam(attempt_id):
             'total_marks': total_marks,
             'percentage': round(attempt.percentage, 2),
             'is_passed': attempt.is_passed,
-            'time_taken': time_taken,
+            'time_taken': time_taken_display,
             'auto_submitted': auto_submit
         })
     
