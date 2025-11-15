@@ -363,10 +363,30 @@ function studentOnlineExams() {
                 });
                 
                 console.log('📡 Start exam response status:', response.status);
+                console.log('📡 Start exam response ok:', response.ok);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ Response not OK:', errorText);
+                    throw new Error(`Server returned ${response.status}`);
+                }
+                
                 const data = await response.json();
                 console.log('📡 Start exam data:', data);
+                console.log('📡 data.success:', data.success);
+                console.log('📡 data.data:', data.data);
                 
-                if (data.success) {
+                if (data.success && data.data) {
+                    console.log('📡 attempt_id:', data.data.attempt_id);
+                    console.log('📡 questions:', data.data.questions ? data.data.questions.length : 'MISSING');
+                    
+                    if (!data.data.attempt_id) {
+                        throw new Error('No attempt_id in response');
+                    }
+                    if (!data.data.questions) {
+                        throw new Error('No questions in response');
+                    }
+                    
                     this.activeExam = exam;
                     this.attemptId = data.data.attempt_id;
                     this.questions = data.data.questions;
@@ -389,7 +409,8 @@ function studentOnlineExams() {
                         }
                     }, 100);
                 } else {
-                    console.error('❌ Failed to start exam:', data.message);
+                    console.error('❌ Failed to start exam:', data.message || 'Unknown error');
+                    console.error('❌ Full response:', data);
                     alert('Error: ' + (data.message || 'Failed to start exam'));
                 }
             } catch (error) {
