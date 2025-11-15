@@ -114,11 +114,18 @@ window.startExam = function(examId) {
         headers: {'Content-Type': 'application/json'},
         credentials: 'same-origin'
     })
-    .then(function(response) { return response.json(); })
+    .then(function(response) { 
+        console.log('📡 Start response status:', response.status);
+        return response.json(); 
+    })
     .then(function(data) {
-        console.log('📡 Start response:', data);
-        if (data.success) {
+        console.log('📡 Start response data:', data);
+        if (data.success && data.data) {
             var exam = window.onlineExamsState.allExams.find(function(e) { return e.id === examId; });
+            if (!exam) {
+                alert('Error: Exam not found');
+                return;
+            }
             window.onlineExamsState.activeExam = exam;
             window.onlineExamsState.attemptId = data.data.attempt_id;
             window.onlineExamsState.questions = data.data.questions;
@@ -127,12 +134,14 @@ window.startExam = function(examId) {
             showExamModal();
             startTimer();
         } else {
-            alert('Error: ' + data.message);
+            var errorMsg = data.message || data.error || 'Failed to start exam';
+            console.error('❌ Start exam failed:', errorMsg);
+            alert('Error: ' + errorMsg);
         }
     })
     .catch(function(error) {
-        console.error('❌ Error:', error);
-        alert('Failed to start exam');
+        console.error('❌ Exception starting exam:', error);
+        alert('Failed to start exam. Please check your connection.');
     });
 };
 
@@ -210,31 +219,42 @@ function startTimer() {
 }
 
 window.submitExam = function() {
-    if (window.onlineExamsState.isSubmitting) return;
+    if (window.onlineExamsState.isSubmitting) {
+        console.log('⚠️ Already submitting...');
+        return;
+    }
     window.onlineExamsState.isSubmitting = true;
     
     if (window.onlineExamsState.timer) clearInterval(window.onlineExamsState.timer);
+    
+    console.log('📤 Submitting exam, attempt ID:', window.onlineExamsState.attemptId);
     
     fetch('/api/online-exams/attempts/' + window.onlineExamsState.attemptId + '/submit', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         credentials: 'same-origin'
     })
-    .then(function(response) { return response.json(); })
+    .then(function(response) { 
+        console.log('📡 Submit response status:', response.status);
+        return response.json(); 
+    })
     .then(function(data) {
-        console.log('📡 Submit response:', data);
-        if (data.success) {
+        console.log('📡 Submit response data:', data);
+        if (data.success && data.data) {
             showResults(data.data);
             document.getElementById('examModal').classList.add('hidden');
+            window.onlineExamsState.isSubmitting = false;
             loadOnlineExams(); // Reload exams list
         } else {
-            alert('Error: ' + data.message);
+            var errorMsg = data.message || data.error || 'Failed to submit exam';
+            console.error('❌ Submit failed:', errorMsg);
+            alert('Error: ' + errorMsg);
             window.onlineExamsState.isSubmitting = false;
         }
     })
     .catch(function(error) {
-        console.error('❌ Error:', error);
-        alert('Failed to submit exam');
+        console.error('❌ Exception submitting exam:', error);
+        alert('Failed to submit exam. Please check your connection.');
         window.onlineExamsState.isSubmitting = false;
     });
 };
