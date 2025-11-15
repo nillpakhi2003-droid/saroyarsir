@@ -233,16 +233,16 @@ function showSection(sectionName) {
     } 
     else if (sectionName === 'online-exams') {
         console.log('📝 Online Exams Section');
-        console.log('  - window.studentOnlineExamsComp exists?', !!window.studentOnlineExamsComp);
-        if (window.studentOnlineExamsComp) {
-            if (!window.studentOnlineExamsComp.exams || window.studentOnlineExamsComp.exams.length === 0) {
-                console.log('  → Calling loadExams() to fetch published exams');
-                try { window.studentOnlineExamsComp.loadExams(); } catch (err) { console.error('❌ Error calling loadExams():', err); }
+        console.log('  - window.loadOnlineExams type:', typeof window.loadOnlineExams);
+        if (typeof window.loadOnlineExams === 'function') {
+            if (!window.onlineExamsState || !window.onlineExamsState.allExams || window.onlineExamsState.allExams.length === 0) {
+                console.log('  → Calling loadOnlineExams()');
+                try { window.loadOnlineExams(); } catch (err) { console.error('❌ Error calling loadOnlineExams():', err); }
             } else {
-                console.log('  ✓ Exams already loaded:', window.studentOnlineExamsComp.exams.length);
+                console.log('  ✓ Exams already loaded:', window.onlineExamsState.allExams.length);
             }
         } else {
-            console.error('❌ studentOnlineExamsComp not found. Alpine init may have failed or partial not loaded.');
+            console.error('❌ window.loadOnlineExams not found. Check if partial loaded.');
         }
     }
     else if (sectionName === 'online-resources') {
