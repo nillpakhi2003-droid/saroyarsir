@@ -182,39 +182,63 @@ window.startExam = function(examId) {
 };
 
 function showExamModal() {
+    console.log('🎬 showExamModal called');
     var state = window.onlineExamsState;
     var modal = document.getElementById('examModal');
     
+    if (!modal) {
+        console.error('❌ examModal element not found!');
+        alert('Error: Modal not found');
+        return;
+    }
+    
+    var modalContent = modal.querySelector('.bg-white');
+    if (!modalContent) {
+        console.error('❌ Modal content container not found!');
+        alert('Error: Modal content not found');
+        return;
+    }
+    
+    console.log('✅ Modal elements found, building exam...');
+    console.log('Questions:', state.questions.length);
+    
     var html = '<div class="bg-indigo-600 text-white px-6 py-4">';
     html += '<div class="flex justify-between items-center">';
-    html += '<div><h3 class="text-xl font-bold">' + state.activeExam.title + '</h3>';
-    html += '<p class="text-sm">' + state.activeExam.chapter_name + '</p></div>';
+    html += '<div><h3 class="text-xl font-bold">' + (state.activeExam.title || 'Exam') + '</h3>';
+    html += '<p class="text-sm">' + (state.activeExam.chapter_name || '') + '</p></div>';
     html += '<div class="text-center"><div id="timer" class="text-3xl font-bold">30:00</div>';
     html += '<p class="text-xs">Time Left</p></div></div></div>';
     
     html += '<div class="p-6 max-h-96 overflow-y-auto">';
-    for (var i = 0; i < state.questions.length; i++) {
-        var q = state.questions[i];
-        html += '<div class="mb-6 pb-6 border-b">';
-        html += '<p class="font-semibold mb-3">' + (i + 1) + '. ' + q.question_text + '</p>';
-        html += '<div class="space-y-2">';
-        html += createOption(q.id, 'A', q.option_a);
-        html += createOption(q.id, 'B', q.option_b);
-        html += createOption(q.id, 'C', q.option_c);
-        html += createOption(q.id, 'D', q.option_d);
-        html += '</div></div>';
+    
+    if (state.questions.length === 0) {
+        html += '<p class="text-center text-gray-500">No questions available</p>';
+    } else {
+        for (var i = 0; i < state.questions.length; i++) {
+            var q = state.questions[i];
+            html += '<div class="mb-6 pb-6 border-b">';
+            html += '<p class="font-semibold mb-3">' + (i + 1) + '. ' + q.question_text + '</p>';
+            html += '<div class="space-y-2">';
+            html += createOption(q.id, 'A', q.option_a);
+            html += createOption(q.id, 'B', q.option_b);
+            html += createOption(q.id, 'C', q.option_c);
+            html += createOption(q.id, 'D', q.option_d);
+            html += '</div></div>';
+        }
     }
+    
     html += '</div>';
     
     html += '<div class="bg-gray-50 px-6 py-4 flex justify-between items-center">';
     html += '<p class="text-sm text-gray-600">Answered: <span id="answeredCount">0</span>/' + state.questions.length + '</p>';
     html += '<div class="space-x-2">';
-    html += '<button onclick="exitExam()" class="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400">Exit</button>';
-    html += '<button onclick="submitExam()" class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Submit</button>';
+    html += '<button onclick="window.exitExam()" class="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400">Exit</button>';
+    html += '<button onclick="window.submitExam()" class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Submit</button>';
     html += '</div></div>';
     
-    modal.querySelector('.bg-white').innerHTML = html;
+    modalContent.innerHTML = html;
     modal.classList.remove('hidden');
+    console.log('✅ Modal displayed');
 }
 
 function createOption(questionId, option, text) {
