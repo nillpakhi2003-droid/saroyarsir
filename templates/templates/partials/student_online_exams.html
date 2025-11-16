@@ -190,7 +190,22 @@ function createOption(questionId, option, text) {
 window.saveAnswer = function(questionId, answer) {
     window.onlineExamsState.answers[questionId] = answer;
     var count = Object.keys(window.onlineExamsState.answers).length;
+    var total = window.onlineExamsState.questions.length;
+    
     document.getElementById('answeredCount').textContent = count;
+    
+    console.log('💾 Answer saved:', count, '/', total);
+    
+    // Auto-submit if all questions answered
+    if (count === total) {
+        console.log('✅ All questions answered! Auto-submitting in 1 second...');
+        setTimeout(function() {
+            if (Object.keys(window.onlineExamsState.answers).length === total) {
+                console.log('🚀 Auto-submitting exam...');
+                submitExam();
+            }
+        }, 1000);
+    }
     
     // Save to server
     fetch('/api/online-exams/attempts/' + window.onlineExamsState.attemptId + '/answer', {
@@ -209,13 +224,58 @@ function startTimer() {
         state.timeRemaining--;
         var mins = Math.floor(state.timeRemaining / 60);
         var secs = state.timeRemaining % 60;
-        document.getElementById('timer').textContent = mins + ':' + (secs < 10 ? '0' : '') + secs;
+        var timerElement = document.getElementById('timer');
+        if (timerElement) {
+            timerElement.textContent = mins + ':' + (secs < 10 ? '0' : '') + secs;
+        }
         
         if (state.timeRemaining <= 0) {
             clearInterval(state.timer);
+            console.log('⏰ Time expired! Auto-submitting...');
             autoSubmit();
         }
     }, 1000);
+}
+
+function autoSubmit() {
+    console.log('🔴 AUTO-SUBMIT: Time expired');
+    if (window.onlineExamsState.isSubmitting) {
+        console.log('⚠️ Already submitting...');
+        return;
+    }
+    
+    window.onlineExamsState.isSubmitting = true;
+    
+    if (window.onlineExamsState.timer) {
+        clearInterval(window.onlineExamsState.timer);
+    }
+    
+    fetch('/api/online-exams/attempts/' + window.onlineExamsState.attemptId + '/submit', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        credentials: 'same-origin',
+        body: JSON.stringify({auto_submit: true})
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        console.log('📡 Auto-submit response:', data);
+        if (data.success && data.data) {
+            showResults(data.data);
+            document.getElementById('examModal').classList.add('hidden');
+            window.onlineExamsState.isSubmitting = false;
+            loadOnlineExams();
+        } else {
+            alert('Exam time expired and submitted.');
+            document.getElementById('examModal').classList.add('hidden');
+            window.onlineExamsState.isSubmitting = false;
+        }
+    })
+    .catch(function(error) {
+        console.error('❌ Auto-submit error:', error);
+        alert('Time expired! Exam submitted.');
+        document.getElementById('examModal').classList.add('hidden');
+        window.onlineExamsState.isSubmitting = false;
+    });
 }
 
 window.submitExam = function() {
@@ -259,22 +319,6 @@ window.submitExam = function() {
     });
 };
 
-function autoSubmit() {
-    fetch('/api/online-exams/attempts/' + window.onlineExamsState.attemptId + '/submit', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        credentials: 'same-origin',
-        body: JSON.stringify({auto_submit: true})
-    })
-    .then(function(response) { return response.json(); })
-    .then(function(data) {
-        if (data.success) {
-            showResults(data.data);
-            document.getElementById('examModal').classList.add('hidden');
-        }
-    });
-}
-
 window.exitExam = function() {
     if (confirm('Exit exam? Your progress will be lost.')) {
         if (window.onlineExamsState.timer) clearInterval(window.onlineExamsState.timer);
@@ -314,6 +358,23 @@ window.closeResults = function() {
     document.getElementById('resultsModal').classList.add('hidden');
 };
 
-// Auto-load when tab is activated
+// Auto-load when module loads (fallback if dashboard doesn't trigger)
 console.log('📝 Online Exams module ready');
+
+// Try to load exams if section is visible
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+        var section = document.getElementById('online-examsSection');
+        if (section && !section.classList.contains('hidden')) {
+            console.log('📝 Online exams section visible on load, loading exams...');
+            setTimeout(function() { loadOnlineExams(); }, 200);
+        }
+    });
+} else {
+    var section = document.getElementById('online-examsSection');
+    if (section && !section.classList.contains('hidden')) {
+        console.log('📝 Online exams section visible, loading exams...');
+        setTimeout(function() { loadOnlineExams(); }, 200);
+    }
+}
 </script>
