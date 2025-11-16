@@ -94,7 +94,9 @@ function renderExams() {
     var container = document.getElementById('examsContainer');
     var exams = window.onlineExamsState.allExams;
     
-    if (exams.length === 0) {
+    console.log('🎨 Rendering exams:', exams);
+    
+    if (!exams || exams.length === 0) {
         container.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500"><p>No exams available</p></div>';
         return;
     }
@@ -102,23 +104,35 @@ function renderExams() {
     var html = '';
     for (var i = 0; i < exams.length; i++) {
         var exam = exams[i];
+        console.log('📝 Rendering exam:', exam);
+        
+        // Safe access with defaults
+        var title = exam.title || 'Untitled Exam';
+        var className = exam.class_name || '';
+        var chapterName = exam.chapter_name || '';
+        var duration = exam.duration || 0;
+        var totalQuestions = exam.total_questions || 0;
+        var passPercentage = exam.pass_percentage || 0;
+        var attemptsCount = exam.attempts_count || 0;
+        var bestScore = exam.best_score || null;
+        
         html += '<div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">';
-        html += '<h3 class="font-bold text-lg text-gray-900 mb-2">' + exam.title + '</h3>';
-        html += '<p class="text-sm text-gray-600 mb-2">' + exam.class_name + ' • ' + exam.chapter_name + '</p>';
+        html += '<h3 class="font-bold text-lg text-gray-900 mb-2">' + title + '</h3>';
+        html += '<p class="text-sm text-gray-600 mb-2">' + className + ' • ' + chapterName + '</p>';
         html += '<div class="space-y-1 text-sm text-gray-700 mb-4">';
-        html += '<p><i class="fas fa-clock text-indigo-600"></i> ' + exam.duration + ' minutes</p>';
-        html += '<p><i class="fas fa-question-circle text-indigo-600"></i> ' + exam.total_questions + ' questions</p>';
-        html += '<p><i class="fas fa-trophy text-indigo-600"></i> Pass: ' + exam.pass_percentage + '%</p>';
-        if (exam.attempts_count > 0) {
-            html += '<p class="text-green-600"><i class="fas fa-check-circle"></i> Attempts: ' + exam.attempts_count;
-            if (exam.best_score !== null) {
-                html += ' (Best: ' + exam.best_score + '%)';
+        html += '<p><i class="fas fa-clock text-indigo-600"></i> ' + duration + ' minutes</p>';
+        html += '<p><i class="fas fa-question-circle text-indigo-600"></i> ' + totalQuestions + ' questions</p>';
+        html += '<p><i class="fas fa-trophy text-indigo-600"></i> Pass: ' + passPercentage + '%</p>';
+        if (attemptsCount > 0) {
+            html += '<p class="text-green-600"><i class="fas fa-check-circle"></i> Attempts: ' + attemptsCount;
+            if (bestScore !== null && bestScore !== undefined) {
+                html += ' (Best: ' + bestScore + '%)';
             }
             html += '</p>';
         }
         html += '</div>';
         html += '<button onclick="startExam(' + exam.id + ')" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">';
-        html += '<i class="fas fa-play mr-2"></i>' + (exam.attempts_count > 0 ? 'Take Again' : 'Start Exam');
+        html += '<i class="fas fa-play mr-2"></i>' + (attemptsCount > 0 ? 'Take Again' : 'Start Exam');
         html += '</button>';
         html += '</div>';
     }
