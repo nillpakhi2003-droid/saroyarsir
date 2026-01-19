@@ -7,6 +7,9 @@ from app import create_app, db
 # Create the Flask application instance
 app = create_app()
 
+# Gunicorn looks for 'application' attribute
+application = app
+
 if __name__ == "__main__":
     # This is used when running directly with python wsgi.py
     # For production, gunicorn will use the 'app' object above
