@@ -1,0 +1,323 @@
+<!-- Fee Management - Simplified (No JF/TF) -->
+<div class="space-y-6" x-data="feeManagerSimple()" x-init="init()">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-900">Fee Management</h2>
+            <p class="text-gray-600">Manage monthly fees for students</p>
+        </div>
+    </div>
+
+    <!-- Main Card -->
+    <div class="bg-white rounded-lg shadow p-6">
+        
+        <!-- Messages -->
+        <div x-show="error" x-cloak class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p class="text-red-800" x-text="error"></p>
+        </div>
+
+        <div x-show="message" x-cloak class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p class="text-green-800" x-text="message"></p>
+        </div>
+
+        <!-- Selection Area -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-blue-50 rounded-lg">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Select Batch</label>
+                <select x-model="selectedBatch" @change="loadFees()"
+                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="">-- Choose Batch --</option>
+                    <template x-for="batch in batches" :key="batch.id">
+                        <option :value="batch.id" x-text="`${batch.name} (${batch.student_count || 0} students)`"></option>
+                    </template>
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Academic Year</label>
+                <select x-model="selectedYear" @change="loadFees()"
+                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                    <option value="2026">2026</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div x-show="loading" x-cloak class="text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+            <p class="mt-4 text-gray-600">Loading fees...</p>
+        </div>
+
+        <!-- Fee Table -->
+        <div x-show="!loading && students.length > 0" x-cloak>
+            <div class="mb-4 flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    Fee Details (<span x-text="students.length"></span> students)
+                </h3>
+                <button @click="saveAllFees()" 
+                        :disabled="saving || changedFees.size === 0"
+                        :class="changedFees.size > 0 ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed'"
+                        class="px-6 py-2 text-white rounded-lg font-medium transition-colors">
+                    <span x-show="!saving">Save All Changes (<span x-text="changedFees.size"></span>)</span>
+                    <span x-show="saving">Saving...</span>
+                </button>
+            </div>
+
+            <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Student</th>
+                            <th class="px-3 py-2 text-center text-sm font-medium text-gray-700">Jan</th>
+                            <th class="px-3 py-2 text-center text-sm font-medium text-gray-700">Feb</th>
+                            <th class="px-3 py-2 text-center text-sm font-medium text-gray-700">Mar</th>
+                            <th class="px-3 py-2 text-center text-sm font-medium text-gray-700">Apr</th>
+                            <th class="px-3 py-2 text-center text-sm font-medium text-gray-700">May</th>
+                            <th class="px-3 py-2 text-center text-sm font-medium text-gray-700">Jun</th>
+                            <th class="px-3 py-2 text-center text-sm font-medium text-gray-700">Jul</th>
+                            <th class="px-3 py-2 text-center text-sm font-medium text-gray-700">Aug</th>
+                            <th class="px-3 py-2 text-center text-sm font-medium text-gray-700">Sep</th>
+                            <th class="px-3 py-2 text-center text-sm font-medium text-gray-700">Oct</th>
+                            <th class="px-3 py-2 text-center text-sm font-medium text-gray-700">Nov</th>
+                            <th class="px-3 py-2 text-center text-sm font-medium text-gray-700">Dec</th>
+                            <th class="px-4 py-3 text-center text-sm font-medium text-gray-700 bg-blue-100">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <template x-for="(student, index) in students" :key="student.student_id">
+                            <tr :class="index % 2 === 0 ? 'bg-white' : 'bg-gray-50'">
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    <div x-text="student.student_name"></div>
+                                    <div class="text-xs text-gray-500" x-show="student.paid_date" x-text="'Paid: ' + student.paid_date"></div>
+                                </td>
+                                <template x-for="month in 12" :key="month">
+                                    <td class="px-2 py-2 text-center">
+                                        <div class="flex flex-col items-center">
+                                            <input type="number" 
+                                                   :value="getAmount(student.student_id, month)" 
+                                                   @input="updateAmount(student.student_id, month, $event.target.value)" 
+                                                   @change="markChanged(student.student_id, month)" 
+                                                   class="w-24 px-2 py-1.5 text-center text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" 
+                                                   min="0" 
+                                                   step="0.01" 
+                                                   placeholder="0">
+                                            <div class="text-xs text-gray-500 mt-1" x-show="getUpdatedDate(student.student_id, month)" x-text="getUpdatedDate(student.student_id, month)"></div>
+                                        </div>
+                                    </td>
+                                </template>
+                                <td class="px-4 py-3 text-center font-bold text-blue-600 bg-blue-50" x-text="getStudentTotal(student.student_id).toFixed(2)"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                    <tfoot class="bg-gray-100">
+                        <tr>
+                            <td class="px-4 py-3 text-right font-bold text-gray-900">Monthly Totals:</td>
+                            <template x-for="month in 12" :key="month">
+                                <td class="px-2 py-3 text-center font-semibold text-gray-700" x-text="getMonthTotal(month).toFixed(2)"></td>
+                            </template>
+                            <td class="px-4 py-3 text-center font-bold text-blue-600 text-lg bg-blue-100" x-text="getGrandTotal().toFixed(2)"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- No Data State -->
+        <div x-show="!loading && students.length === 0 && selectedBatch" x-cloak class="text-center py-12">
+            <p class="text-gray-600">No students found in this batch</p>
+        </div>
+
+        <!-- Initial State -->
+        <div x-show="!loading && !selectedBatch" x-cloak class="text-center py-12">
+            <p class="text-lg text-gray-600">Select a batch to manage fees</p>
+        </div>
+    </div>
+</div>
+
+<script>
+function feeManagerSimple() {
+    return {
+        batches: [],
+        students: [],
+        fees: {}, // { student_id: { month: { amount, fee_id, status, paid_date } } }
+        changedFees: new Set(), // "studentId_month"
+        
+        selectedBatch: '',
+        selectedYear: new Date().getFullYear(),
+        
+        loading: false,
+        saving: false,
+        error: '',
+        message: '',
+        
+        async init() {
+            console.log('Fee Manager - Simplified');
+            await this.loadBatches();
+        },
+        
+        async loadBatches() {
+            try {
+                const response = await fetch('/api/batches?include_student_count=true');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.batches = data.success ? (data.data || data.batches || []) : [];
+                }
+            } catch (error) {
+                console.error('Error loading batches:', error);
+                this.error = 'Failed to load batches';
+            }
+        },
+        
+        async loadFees() {
+            if (!this.selectedBatch) return;
+            
+            this.loading = true;
+            this.error = '';
+            this.message = '';
+            this.changedFees.clear();
+            
+            try {
+                const response = await fetch(`/api/fees/load-monthly?batch_id=${this.selectedBatch}&year=${this.selectedYear}`);
+                const data = await response.json();
+                
+                if (data.success && data.data && data.data.fees) {
+                    this.students = data.data.fees;
+                    
+                    // Organize fees: { student_id: { month: {...} } }
+                    this.fees = {};
+                    this.students.forEach(student => {
+                        this.fees[student.student_id] = student.months || {};
+                    });
+                } else {
+                    this.error = data.error || 'Failed to load fees';
+                }
+            } catch (error) {
+                console.error('Error loading fees:', error);
+                this.error = 'Failed to load fees: ' + error.message;
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        getAmount(studentId, month) {
+            const monthKey = String(month);
+            return this.fees[studentId]?.[monthKey]?.amount || 0;
+        },
+        
+        getUpdatedDate(studentId, month) {
+            const monthKey = String(month);
+            const fee = this.fees[studentId]?.[monthKey];
+            if (fee?.updated_at) {
+                const date = new Date(fee.updated_at);
+                return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+            }
+            return null;
+        },
+        
+        updateAmount(studentId, month, value) {
+            const monthKey = String(month);
+            if (!this.fees[studentId]) {
+                this.fees[studentId] = {};
+            }
+            if (!this.fees[studentId][monthKey]) {
+                this.fees[studentId][monthKey] = { amount: 0, fee_id: null, status: null, paid_date: null, updated_at: null };
+            }
+            this.fees[studentId][monthKey].amount = parseFloat(value) || 0;
+        },
+        
+        markChanged(studentId, month) {
+            this.changedFees.add(`${studentId}_${month}`);
+        },
+        
+        getStudentTotal(studentId) {
+            let total = 0;
+            for (let month = 1; month <= 12; month++) {
+                total += this.getAmount(studentId, month);
+            }
+            return total;
+        },
+        
+        getMonthTotal(month) {
+            let total = 0;
+            this.students.forEach(student => {
+                total += this.getAmount(student.student_id, month);
+            });
+            return total;
+        },
+        
+        getGrandTotal() {
+            let total = 0;
+            this.students.forEach(student => {
+                total += this.getStudentTotal(student.student_id);
+            });
+            return total;
+        },
+        
+        async saveAllFees() {
+            if (this.changedFees.size === 0) {
+                this.message = 'No changes to save';
+                return;
+            }
+            
+            this.saving = true;
+            this.error = '';
+            this.message = '';
+            
+            let successCount = 0;
+            let errorCount = 0;
+            
+            for (const key of this.changedFees) {
+                const [studentId, month] = key.split('_');
+                const monthKey = String(month);
+                const feeData = this.fees[studentId][monthKey];
+                
+                const payload = {
+                    student_id: parseInt(studentId),
+                    batch_id: parseInt(this.selectedBatch),
+                    month: parseInt(month),
+                    year: parseInt(this.selectedYear),
+                    amount: feeData.amount || 0
+                };
+                
+                try {
+                    const response = await fetch('/api/fees/save-monthly', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.data) {
+                            if (data.data.fee_id) {
+                                this.fees[studentId][monthKey].fee_id = data.data.fee_id;
+                            }
+                            if (data.data.updated_at) {
+                                this.fees[studentId][monthKey].updated_at = data.data.updated_at;
+                            }
+                        }
+                        successCount++;
+                    } else {
+                        errorCount++;
+                    }
+                } catch (error) {
+                    console.error('Error saving fee:', error);
+                    errorCount++;
+                }
+            }
+            
+            this.saving = false;
+            this.changedFees.clear();
+            
+            if (errorCount === 0) {
+                this.message = `Successfully saved ${successCount} fees`;
+                setTimeout(() => this.message = '', 3000);
+            } else {
+                this.error = `Saved ${successCount} fees, ${errorCount} failed`;
+            }
+        }
+    };
+}
+</script>

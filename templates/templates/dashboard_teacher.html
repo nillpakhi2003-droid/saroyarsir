@@ -912,8 +912,8 @@ function attendanceManager() {
             return this.attendanceStudents.filter(s => s.status === 'absent').length;
         },
 
-        get holidayCount() {
-            return this.attendanceStudents.filter(s => s.status === 'holiday').length;
+        get leaveCount() {
+            return this.attendanceStudents.filter(s => s.status === 'leave').length;
         },
 
         get attendancePercentage() {
@@ -1185,10 +1185,10 @@ function attendanceManager() {
             });
         },
 
-        // Mark all students holiday
-        markAllHoliday() {
+        // Mark all students on leave
+        markAllLeave() {
             this.attendanceStudents.forEach(student => {
-                student.status = 'holiday';
+                student.status = 'leave';
             });
         },
 
@@ -1389,9 +1389,7 @@ function attendanceManager() {
                     return 'bg-green-500 text-white';
                 case 'absent':
                     return 'bg-red-500 text-white';
-                case 'late':
-                    return 'bg-yellow-500 text-white';
-                case 'holiday':
+                case 'leave':
                     return 'bg-orange-500 text-white';
                 default:
                     return 'bg-gray-200 text-gray-500';
@@ -1405,10 +1403,8 @@ function attendanceManager() {
                     return 'P';
                 case 'absent':
                     return 'A';
-                case 'late':
+                case 'leave':
                     return 'L';
-                case 'holiday':
-                    return 'H';
                 default:
                     return '-';
             }
@@ -1431,6 +1427,70 @@ function attendanceManager() {
                 }
             } catch (e) {
                 return '-';
+            }
+        },
+
+        // Download monthly attendance sheet
+        async downloadMonthlySheet(event) {
+            if (!this.monthlyBatchId || !this.selectedMonth || !this.selectedYear) {
+                alert('Please select batch, month, and year first');
+                return;
+            }
+
+            try {
+                // Show loading indicator
+                const originalText = event.target.innerHTML;
+                event.target.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Downloading...';
+                event.target.disabled = true;
+
+                // Build download URL
+                const url = `/api/attendance/download-monthly?batch_id=${this.monthlyBatchId}&month=${this.selectedMonth}&year=${this.selectedYear}`;
+                
+                // Fetch the file
+                const response = await fetch(url, {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to download attendance sheet');
+                }
+
+                // Get the filename from Content-Disposition header if available
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = `Attendance_${this.getMonthName(this.selectedMonth)}_${this.selectedYear}.csv`;
+                
+                if (contentDisposition) {
+                    const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+                    if (filenameMatch) {
+                        filename = filenameMatch[1];
+                    }
+                }
+
+                // Create blob and download
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(downloadUrl);
+                document.body.removeChild(a);
+
+                // Show success message
+                this.errorMessage = 'Attendance sheet downloaded successfully!';
+                setTimeout(() => this.errorMessage = '', 3000);
+
+            } catch (error) {
+                console.error('Failed to download attendance sheet:', error);
+                alert('Failed to download attendance sheet: ' + error.message);
+            } finally {
+                // Restore button
+                if (event && event.target) {
+                    event.target.innerHTML = '<i class="fas fa-download mr-2"></i>Download Sheet';
+                    event.target.disabled = false;
+                }
             }
         },
 

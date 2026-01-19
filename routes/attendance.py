@@ -1,13 +1,15 @@
 """
 Attendance Management Routes - Enhanced for Mobile & PC Responsiveness
 """
-from flask import Blueprint, request
+from flask import Blueprint, request, send_file, make_response
 from models import db, Attendance, User, Batch, UserRole, AttendanceStatus
 from utils.auth import login_required, require_role, get_current_user
 from utils.response import success_response, error_response
 from datetime import datetime, timedelta
 from sqlalchemy import func, and_, extract
 import calendar
+import io
+import csv
 
 attendance_bp = Blueprint('attendance', __name__)
 
@@ -574,3 +576,136 @@ def get_attendance_summary():
         
     except Exception as e:
         return error_response(f'Failed to retrieve attendance summary: {str(e)}', 500)
+
+
+@attendance_bp.route('/download-monthly', methods=['GET'])
+@login_required
+def download_monthly_attendance():
+    """Download monthly attendance sheet as CSV"""
+    try:
+        current_user = get_current_user()
+        batch_id = request.args.get('batch_id', type=int)
+        month = request.args.get('month', type=int)
+        year = request.args.get('year', type=int)
+        
+        if not batch_id or not month or not year:
+            return error_response('Batch ID, month, and year are required', 400)
+        
+        # Get batch
+        batch = Batch.query.get(batch_id)
+        if not batch:
+            return error_response('Batch not found', 404)
+        
+        # Get students in batch (sorted by roll number if available)
+        students = User.query.join(User.batches).filter(
+            User.role == UserRole.STUDENT,
+            User.is_active == True,
+            User.is_archived == False,
+            Batch.id == batch_id
+        ).order_by(User.first_name, User.last_name).all()
+        
+        # Get days in month
+        days_in_month = calendar.monthrange(year, month)[1]
+        days = list(range(1, days_in_month + 1))
+        
+        # Get attendance records for the month
+        start_date = datetime(year, month, 1).date()
+        end_date = datetime(year, month, days_in_month).date()
+        
+        attendance_records = Attendance.query.filter(
+            and_(
+                Attendance.batch_id == batch_id,
+                Attendance.date >= start_date,
+                Attendance.date <= end_date
+            )
+        ).all()
+        
+        # Organize attendance by student and date
+        attendance_map = {}
+        for record in attendance_records:
+            key = f"{record.user_id}_{record.date.day}"
+            attendance_map[key] = record.status.value
+        
+        # Create CSV in memory
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        month_name = calendar.month_name[month]
+        writer.writerow([f'Monthly Attendance Sheet - {batch.name}'])
+        writer.writerow([f'{month_name} {year}'])
+        writer.writerow([])  # Empty row
+        
+        # Write column headers (dates with day names)
+        header_row1 = ['Student Name', 'Phone']
+        header_row2 = ['', '']
+        
+        for day in days:
+            date_obj = datetime(year, month, day)
+            day_name = date_obj.strftime('%a')  # Mon, Tue, etc.
+            header_row1.append(f'{day}')
+            header_row2.append(day_name)
+        
+        header_row1.extend(['Total Present', 'Total Absent', 'Total Leave', 'Attendance %'])
+        header_row2.extend(['', '', '', ''])
+        
+        writer.writerow(header_row1)
+        writer.writerow(header_row2)
+        
+        # Write student attendance data
+        for student in students:
+            row = [
+                student.full_name or f"{student.first_name} {student.last_name}",
+                student.phoneNumber or ''
+            ]
+            
+            present_count = 0
+            absent_count = 0
+            leave_count = 0
+            
+            for day in days:
+                key = f"{student.id}_{day}"
+                status = attendance_map.get(key, None)
+                
+                if status == 'present':
+                    row.append('P')
+                    present_count += 1
+                elif status == 'absent':
+                    row.append('A')
+                    absent_count += 1
+                elif status == 'leave':
+                    row.append('L')
+                    leave_count += 1
+                else:
+                    row.append('-')
+            
+            # Calculate attendance percentage
+            total_marked = present_count + absent_count + leave_count
+            attendance_percentage = (present_count / total_marked * 100) if total_marked > 0 else 0
+            
+            row.extend([
+                present_count,
+                absent_count,
+                leave_count,
+                f"{attendance_percentage:.1f}%"
+            ])
+            
+            writer.writerow(row)
+        
+        # Add summary row
+        writer.writerow([])
+        writer.writerow(['Legend:', 'P = Present', 'A = Absent', 'L = Leave', '- = Not Marked'])
+        
+        # Prepare the file for download
+        output.seek(0)
+        
+        # Create response
+        response = make_response(output.getvalue())
+        response.headers['Content-Disposition'] = f'attachment; filename=Attendance_{batch.name.replace(" ", "_")}_{month_name}_{year}.csv'
+        response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+        
+        return response
+        
+    except Exception as e:
+        print(f"Error downloading attendance: {str(e)}")
+        return error_response(f'Failed to download attendance: {str(e)}', 500)

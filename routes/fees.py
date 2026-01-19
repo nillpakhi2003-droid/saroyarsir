@@ -821,9 +821,9 @@ def save_monthly_fee():
             return error_response('Invalid amount format', 400)
         
         # Get student and batch info
-        student = User.query.filter_by(id=student_id, role=UserRole.STUDENT, is_active=True).first()
+        student = User.query.filter_by(id=student_id, role=UserRole.STUDENT, is_active=True, is_archived=False).first()
         if not student:
-            return error_response('Student not found', 404)
+            return error_response('Student not found or archived', 404)
         
         # For now, use the first batch the student is enrolled in
         # In a more complex system, batch_id would be provided

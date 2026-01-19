@@ -384,7 +384,7 @@ def add_student_to_batch(batch_id):
         if not student_id:
             return error_response('Student ID is required', 400)
         
-        student = User.query.filter_by(id=student_id, role=UserRole.STUDENT, is_active=True).first()
+        student = User.query.filter_by(id=student_id, role=UserRole.STUDENT, is_active=True, is_archived=False).first()
         
         if not student:
             return error_response('Student not found', 404)

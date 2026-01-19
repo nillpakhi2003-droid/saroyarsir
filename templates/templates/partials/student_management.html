@@ -7,6 +7,9 @@
             <button @click="loadStudents()" class="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200" title="Refresh Data">
                 <i class="fas fa-sync-alt mr-2"></i>Refresh
             </button>
+            <button x-show="selectedStudents.size > 0" @click="bulkArchiveStudents()" class="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200" title="Archive Selected Students">
+                <i class="fas fa-archive mr-2"></i>Archive Selected (<span x-text="selectedStudents.size"></span>)
+            </button>
             <button @click="showAddModal = true; loadBatches()" class="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200">
                 <i class="fas fa-plus mr-2"></i>Add New Student
             </button>
@@ -57,6 +60,13 @@
             <table class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
+                        <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <input type="checkbox" 
+                                   @change="toggleSelectAll($event.target.checked)" 
+                                   :checked="filteredStudents && filteredStudents.length > 0 && selectedStudents.size > 0 && selectedStudents.size === filteredStudents.length"
+                                   class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                   title="Select All">
+                        </th>
                         <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Name</th>
                         <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parents Info</th>
                         <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
@@ -69,7 +79,14 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     <template x-for="student in filteredStudents" :key="student.id">
-                        <tr class="hover:bg-gray-50">
+                        <tr class="hover:bg-gray-50" :class="{'bg-blue-50': selectedStudents.has(student.id)}">
+                            <!-- Checkbox -->
+                            <td class="px-3 py-4 text-center">
+                                <input type="checkbox" 
+                                       :checked="selectedStudents.has(student.id)" 
+                                       @change="toggleStudentSelection(student.id, $event.target.checked)"
+                                       class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            </td>
                             <!-- Student Name -->
                             <td class="px-3 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
@@ -487,6 +504,7 @@ function studentManagement() {
         students: [],
         filteredStudents: [],
         batches: [],
+        selectedStudents: new Set(),
         loading: false,
         saving: false,
         deleting: false,
@@ -828,6 +846,64 @@ function studentManagement() {
             this.showDeleteModal = true;
         },
 
+        toggleStudentSelection(studentId, isChecked) {
+            if (isChecked) {
+                this.selectedStudents.add(studentId);
+            } else {
+                this.selectedStudents.delete(studentId);
+            }
+        },
+        
+        toggleSelectAll(isChecked) {
+            if (isChecked) {
+                this.filteredStudents.forEach(student => {
+                    this.selectedStudents.add(student.id);
+                });
+            } else {
+                this.selectedStudents.clear();
+            }
+        },
+        
+        async bulkArchiveStudents() {
+            if (this.selectedStudents.size === 0) {
+                this.showToast('No students selected', 'warning');
+                return;
+            }
+            
+            const reason = prompt(`Archive ${this.selectedStudents.size} student(s)?\n\nOptional reason (press OK to continue):`);
+            
+            if (reason === null) {
+                // User cancelled
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/students/bulk-archive', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        student_ids: Array.from(this.selectedStudents),
+                        reason: reason || 'Bulk archived by teacher'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.message || 'Failed to archive students');
+                }
+                
+                this.showToast(`Successfully archived ${result.data.archived_count} student(s)`, 'success');
+                this.selectedStudents.clear();
+                await this.loadStudents();
+            } catch (error) {
+                console.error('Failed to archive students:', error);
+                this.showToast('Failed to archive students: ' + error.message, 'error');
+            }
+        },
+        
         async archiveStudent(student) {
             const reason = prompt(`Archive "${student.firstName} ${student.lastName}"?\n\nOptional reason (press OK to continue):`);
             

@@ -53,8 +53,7 @@ def load_monthly_fees():
         
         students = User.query.filter(
             User.role == UserRole.STUDENT,
-            User.is_active == True,
-            User.is_archived == False
+            User.is_active == True
         ).join(User.batches).filter(Batch.id == batch_id).order_by(User.first_name).all()
         
         if not students:
@@ -78,8 +77,7 @@ def load_monthly_fees():
                 'amount': float(fee.amount),
                 'fee_id': fee.id,
                 'status': fee.status.value,
-                'paid_date': fee.paid_date.isoformat() if fee.paid_date else None,
-                'updated_at': fee.updated_at.isoformat() if fee.updated_at else None
+                'paid_date': fee.paid_date.isoformat() if fee.paid_date else None
             }
         
         # Build response
@@ -99,8 +97,7 @@ def load_monthly_fees():
                         'amount': 0,
                         'fee_id': None,
                         'status': None,
-                        'paid_date': None,
-                        'updated_at': None
+                        'paid_date': None
                     }
             
             result.append(student_data)
@@ -160,8 +157,7 @@ def save_monthly_fee():
         student = User.query.filter_by(
             id=student_id,
             role=UserRole.STUDENT,
-            is_active=True,
-            is_archived=False
+            is_active=True
         ).first()
         
         if not student:
@@ -211,8 +207,7 @@ def save_monthly_fee():
                     'year': year,
                     'amount': float(existing_fee.amount),
                     'status': existing_fee.status.value,
-                    'paid_date': existing_fee.paid_date.isoformat() if existing_fee.paid_date else None,
-                    'updated_at': existing_fee.updated_at.isoformat() if existing_fee.updated_at else None
+                    'paid_date': existing_fee.paid_date.isoformat() if existing_fee.paid_date else None
                 })
         else:
             if amount == 0:
@@ -244,8 +239,7 @@ def save_monthly_fee():
                     'year': year,
                     'amount': float(new_fee.amount),
                     'status': new_fee.status.value,
-                    'paid_date': None,
-                    'updated_at': new_fee.updated_at.isoformat() if new_fee.updated_at else datetime.utcnow().isoformat()
+                    'paid_date': None
                 }, 201)
         
     except Exception as e:

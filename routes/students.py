@@ -632,6 +632,67 @@ def bulk_import_students():
 # ARCHIVE MANAGEMENT ROUTES
 # ============================================================================
 
+@students_bp.route('/bulk-archive', methods=['POST'])
+@login_required
+@require_role(UserRole.TEACHER, UserRole.SUPER_USER)
+def bulk_archive_students():
+    """Archive multiple students at once"""
+    try:
+        current_user = get_current_user()
+        data = request.get_json() or {}
+        student_ids = data.get('student_ids', [])
+        reason = data.get('reason', 'Bulk archived by teacher')
+        
+        if not student_ids or not isinstance(student_ids, list):
+            return error_response('student_ids array is required', 400)
+        
+        if len(student_ids) == 0:
+            return error_response('No students selected', 400)
+        
+        archived_students = []
+        already_archived = []
+        not_found = []
+        
+        for student_id in student_ids:
+            student = User.query.get(student_id)
+            
+            if not student or student.role != UserRole.STUDENT:
+                not_found.append(student_id)
+                continue
+            
+            if student.is_archived:
+                already_archived.append({
+                    'id': student.id,
+                    'name': student.full_name
+                })
+                continue
+            
+            # Archive the student
+            student.is_archived = True
+            student.archived_at = datetime.utcnow()
+            student.archived_by = current_user.id
+            student.archive_reason = reason
+            
+            archived_students.append({
+                'id': student.id,
+                'name': student.full_name
+            })
+        
+        db.session.commit()
+        
+        return success_response(f'Successfully archived {len(archived_students)} student(s)', {
+            'archived_count': len(archived_students),
+            'archived_students': archived_students,
+            'already_archived_count': len(already_archived),
+            'already_archived': already_archived,
+            'not_found_count': len(not_found),
+            'not_found': not_found
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to archive students: {str(e)}', 500)
+
 @students_bp.route('/<int:student_id>/archive', methods=['POST'])
 @login_required
 @require_role(UserRole.TEACHER, UserRole.SUPER_USER)

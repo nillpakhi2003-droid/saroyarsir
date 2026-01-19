@@ -1,5 +1,5 @@
 """
-Fee Management Routes - Simplified (No JF/TF columns)
+Fee Management Routes - Simplified version without JF/TF
 """
 from flask import Blueprint, request, jsonify
 from models import db, User, Batch, Fee, UserRole, FeeStatus
@@ -33,11 +33,34 @@ def load_monthly_fees():
     """
     Load monthly fees for a batch and year
     GET /api/fees/load-monthly?batch_id=1&year=2025
+    
+    Returns:
+    {
+        "success": true,
+        "message": "Fees loaded successfully",
+        "data": {
+            "fees": [
+                {
+                    "student_id": 1,
+                    "student_name": "John Doe",
+                    "months": {
+                        "1": {"amount": 500, "fee_id": 123, "status": "pending", "paid_date": null},
+                        "2": {"amount": 0, "fee_id": null, "status": null, "paid_date": null},
+                        ...
+                    }
+                }
+            ],
+            "batch_id": 1,
+            "year": 2025
+        }
+    }
     """
     try:
+        # Get parameters
         batch_id = request.args.get('batch_id', type=int)
         year = request.args.get('year', type=int)
         
+        # Validate parameters
         if not batch_id:
             return error_response('batch_id is required', 400)
         
@@ -47,25 +70,27 @@ def load_monthly_fees():
         if year < 2020 or year > 2030:
             return error_response('Year must be between 2020 and 2030', 400)
         
+        # Check if batch exists
         batch = Batch.query.get(batch_id)
         if not batch:
             return error_response('Batch not found', 404)
         
+        # Get all active students in the batch
         students = User.query.filter(
             User.role == UserRole.STUDENT,
-            User.is_active == True,
-            User.is_archived == False
+            User.is_active == True
         ).join(User.batches).filter(Batch.id == batch_id).order_by(User.first_name).all()
         
         if not students:
             return error_response('No students found in this batch', 404)
         
+        # Get all fees for this batch and year
         fees = Fee.query.filter(
             Fee.batch_id == batch_id,
             extract('year', Fee.due_date) == year
         ).all()
         
-        # Create lookup: student_id -> month -> fee_data
+        # Create a lookup dictionary: student_id -> month -> fee_data
         fees_lookup = {}
         for fee in fees:
             student_id = fee.user_id
@@ -78,11 +103,10 @@ def load_monthly_fees():
                 'amount': float(fee.amount),
                 'fee_id': fee.id,
                 'status': fee.status.value,
-                'paid_date': fee.paid_date.isoformat() if fee.paid_date else None,
-                'updated_at': fee.updated_at.isoformat() if fee.updated_at else None
+                'paid_date': fee.paid_date.isoformat() if fee.paid_date else None
             }
         
-        # Build response
+        # Build response data
         result = []
         for student in students:
             student_data = {
@@ -91,16 +115,17 @@ def load_monthly_fees():
                 'months': {}
             }
             
+            # Add data for all 12 months
             for month in range(1, 13):
                 if student.id in fees_lookup and month in fees_lookup[student.id]:
                     student_data['months'][str(month)] = fees_lookup[student.id][month]
                 else:
+                    # No fee record for this month
                     student_data['months'][str(month)] = {
                         'amount': 0,
                         'fee_id': None,
                         'status': None,
-                        'paid_date': None,
-                        'updated_at': None
+                        'paid_date': None
                     }
             
             result.append(student_data)
@@ -114,37 +139,68 @@ def load_monthly_fees():
         
     except Exception as e:
         print(f"Error loading fees: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return error_response(f'Failed to load fees: {str(e)}', 500)
 
 
 @fees_bp.route('/save-monthly', methods=['POST'])
 def save_monthly_fee():
     """
-    Save or update a monthly fee
+    Save a single monthly fee entry
     POST /api/fees/save-monthly
     
-    Request: {"student_id": 1, "batch_id": 1, "month": 11, "year": 2025, "amount": 1000.00}
+    Request body:
+    {
+        "student_id": 1,
+        "batch_id": 1,
+        "month": 1,
+        "year": 2025,
+        "amount": 500
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "message": "Fee saved successfully",
+        "data": {
+            "fee_id": 123,
+            "student_id": 1,
+            "month": 1,
+            "year": 2025,
+            "amount": 500
+        }
+    }
     """
     try:
+        # Get request data
         data = request.get_json()
+        if not data:
+            return error_response('Request body is required', 400)
         
+        # Extract and validate required fields
         student_id = data.get('student_id')
         batch_id = data.get('batch_id')
         month = data.get('month')
         year = data.get('year')
-        amount = data.get('amount', 0)
+        jf_amount = data.get('jf_amount', 0)
+        tf_amount = data.get('tf_amount', 0)
         
-        if not all([student_id, batch_id, month, year is not None]):
+        # Backward compatibility: if amount is provided, use it
+        amount = data.get('amount')
+        if amount is not None and jf_amount == 0 and tf_amount == 0:
+            jf_amount = amount
+        
+        # Validate required fields
+        if not all([student_id, batch_id, month, year]):
             return error_response('student_id, batch_id, month, and year are required', 400)
         
+        # Validate types and ranges
         try:
             student_id = int(student_id)
             batch_id = int(batch_id)
             month = int(month)
             year = int(year)
-            amount = float(amount)
+            jf_amount = float(jf_amount)
+            tf_amount = float(tf_amount)
         except (ValueError, TypeError):
             return error_response('Invalid data types', 400)
         
@@ -154,31 +210,36 @@ def save_monthly_fee():
         if not (2020 <= year <= 2030):
             return error_response('Year must be between 2020 and 2030', 400)
         
-        if amount < 0:
-            return error_response('Amount cannot be negative', 400)
+        if jf_amount < 0 or tf_amount < 0:
+            return error_response('Amounts cannot be negative', 400)
         
+        # Calculate total amount for backward compatibility
+        total_amount = jf_amount + tf_amount
+        
+        # Verify student exists and is active
         student = User.query.filter_by(
             id=student_id,
             role=UserRole.STUDENT,
-            is_active=True,
-            is_archived=False
+            is_active=True
         ).first()
         
         if not student:
             return error_response('Student not found or inactive', 404)
         
+        # Verify batch exists
         batch = Batch.query.get(batch_id)
         if not batch:
             return error_response('Batch not found', 404)
         
+        # Verify student is enrolled in the batch
         if batch not in student.batches:
             return error_response('Student is not enrolled in this batch', 400)
         
-        # Calculate due date
+        # Calculate due date (last day of the month)
         last_day = calendar.monthrange(year, month)[1]
         due_date = date(year, month, last_day)
         
-        # Check if fee exists
+        # Check if fee already exists for this student, batch, month, and year
         existing_fee = Fee.query.filter(
             Fee.user_id == student_id,
             Fee.batch_id == batch_id,
@@ -187,8 +248,9 @@ def save_monthly_fee():
         ).first()
         
         if existing_fee:
-            if amount == 0:
-                # Delete fee
+            # Update or delete existing fee
+            if total_amount == 0:
+                # Delete fee if both amounts are zero
                 db.session.delete(existing_fee)
                 db.session.commit()
                 return success_response('Fee deleted successfully', {
@@ -198,8 +260,10 @@ def save_monthly_fee():
                     'year': year
                 })
             else:
-                # Update fee
-                existing_fee.amount = Decimal(str(amount))
+                # Update existing fee
+                existing_fee.jf_amount = Decimal(str(jf_amount))
+                existing_fee.tf_amount = Decimal(str(tf_amount))
+                existing_fee.amount = Decimal(str(total_amount))
                 existing_fee.updated_at = datetime.utcnow()
                 db.session.commit()
                 
@@ -209,13 +273,15 @@ def save_monthly_fee():
                     'batch_id': existing_fee.batch_id,
                     'month': month,
                     'year': year,
+                    'jf_amount': float(existing_fee.jf_amount),
+                    'tf_amount': float(existing_fee.tf_amount),
                     'amount': float(existing_fee.amount),
-                    'status': existing_fee.status.value,
-                    'paid_date': existing_fee.paid_date.isoformat() if existing_fee.paid_date else None,
-                    'updated_at': existing_fee.updated_at.isoformat() if existing_fee.updated_at else None
+                    'status': existing_fee.status.value
                 })
         else:
-            if amount == 0:
+            # Create new fee
+            if total_amount == 0:
+                # Don't create a fee with zero amount
                 return success_response('No fee created (amount is zero)', {
                     'created': False,
                     'student_id': student_id,
@@ -223,11 +289,13 @@ def save_monthly_fee():
                     'year': year
                 })
             else:
-                # Create new fee
+                # Create new fee record
                 new_fee = Fee(
                     user_id=student_id,
                     batch_id=batch_id,
-                    amount=Decimal(str(amount)),
+                    jf_amount=Decimal(str(jf_amount)),
+                    tf_amount=Decimal(str(tf_amount)),
+                    amount=Decimal(str(total_amount)),
                     due_date=due_date,
                     status=FeeStatus.PENDING,
                     notes=f'Monthly fee for {calendar.month_name[month]} {year}'
@@ -242,10 +310,10 @@ def save_monthly_fee():
                     'batch_id': new_fee.batch_id,
                     'month': month,
                     'year': year,
+                    'jf_amount': float(new_fee.jf_amount),
+                    'tf_amount': float(new_fee.tf_amount),
                     'amount': float(new_fee.amount),
-                    'status': new_fee.status.value,
-                    'paid_date': None,
-                    'updated_at': new_fee.updated_at.isoformat() if new_fee.updated_at else datetime.utcnow().isoformat()
+                    'status': new_fee.status.value
                 }, 201)
         
     except Exception as e:
@@ -256,47 +324,14 @@ def save_monthly_fee():
         return error_response(f'Failed to save fee: {str(e)}', 500)
 
 
-@fees_bp.route('/mark-paid', methods=['POST'])
-def mark_fee_paid():
-    """Mark a fee as paid and automatically set paid_date"""
-    try:
-        data = request.get_json()
-        fee_id = data.get('fee_id')
-        
-        if not fee_id:
-            return error_response('fee_id is required', 400)
-        
-        fee = Fee.query.get(fee_id)
-        if not fee:
-            return error_response('Fee not found', 404)
-        
-        # Update status and paid_date
-        fee.status = FeeStatus.PAID
-        fee.paid_date = date.today()
-        fee.updated_at = datetime.utcnow()
-        
-        db.session.commit()
-        
-        return success_response('Fee marked as paid', {
-            'fee_id': fee.id,
-            'status': fee.status.value,
-            'paid_date': fee.paid_date.isoformat()
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        return error_response(f'Failed to mark fee as paid: {str(e)}', 500)
-
-
 @fees_bp.route('/test', methods=['GET'])
 def test_endpoint():
-    """Test endpoint"""
+    """Simple test endpoint to verify routes are working"""
     return success_response('Fee routes are working!', {
         'timestamp': datetime.utcnow().isoformat(),
         'available_endpoints': [
             'GET /api/fees/load-monthly?batch_id=X&year=Y',
             'POST /api/fees/save-monthly',
-            'POST /api/fees/mark-paid',
             'GET /api/fees/test'
         ]
     })

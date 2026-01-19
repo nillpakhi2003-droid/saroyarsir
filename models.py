@@ -46,8 +46,7 @@ class SmsStatus(Enum):
 class AttendanceStatus(Enum):
     PRESENT = "present"
     ABSENT = "absent"
-    LATE = "late"
-    HOLIDAY = "holiday"
+    LEAVE = "leave"
 
 # Association Tables for Many-to-Many Relationships
 user_batches = db.Table('user_batches',
@@ -290,13 +289,11 @@ class Fee(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     batch_id = db.Column(db.Integer, db.ForeignKey('batches.id'), nullable=False)
-    amount = db.Column(Numeric(10, 2), nullable=False)  # Kept for backward compatibility
-    jf_amount = db.Column(Numeric(10, 2), default=0.00)  # JF (জানুয়ারি ফি) amount
-    tf_amount = db.Column(Numeric(10, 2), default=0.00)  # TF (টিউশন ফি) amount
-    exam_fee = db.Column(Numeric(10, 2), default=0.00)  # New: Exam fee
-    others_fee = db.Column(Numeric(10, 2), default=0.00)  # New: Others fee
+    amount = db.Column(Numeric(10, 2), nullable=False)  # Monthly fee amount
+    exam_fee = db.Column(Numeric(10, 2), default=0.00)  # Exam fee
+    others_fee = db.Column(Numeric(10, 2), default=0.00)  # Others fee
     due_date = db.Column(db.Date, nullable=False)
-    paid_date = db.Column(db.Date, nullable=True)
+    paid_date = db.Column(db.Date, nullable=True)  # Auto-set when status changes to PAID
     status = db.Column(db.Enum(FeeStatus), default=FeeStatus.PENDING)
     payment_method = db.Column(db.String(50), nullable=True)
     transaction_id = db.Column(db.String(255), nullable=True)
