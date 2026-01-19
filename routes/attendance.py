@@ -5,8 +5,8 @@ from flask import Blueprint, request, send_file, make_response
 from models import db, Attendance, User, Batch, UserRole, AttendanceStatus
 from utils.auth import login_required, require_role, get_current_user
 from utils.response import success_response, error_response
-from datetime import datetime, timedelta
-from sqlalchemy import func, and_, extract
+from datetime import datetime, timedelta, date as date_type
+from sqlalchemy import func, and_, extract, text
 import calendar
 import io
 import csv
@@ -472,19 +472,48 @@ def get_monthly_attendance():
         start_date = datetime(year, month, 1).date()
         end_date = datetime(year, month, days_in_month).date()
         
-        attendance_records = Attendance.query.filter(
-            and_(
-                Attendance.batch_id == batch_id,
-                Attendance.date >= start_date,
-                Attendance.date <= end_date
-            )
-        ).all()
-        
+        # Fetch attendance using raw SQL to avoid enum coercion issues with legacy values
+        attendance_rows = db.session.execute(
+            text(
+                """
+                SELECT user_id, date, status
+                FROM attendance
+                WHERE batch_id = :batch_id
+                  AND date >= :start_date
+                  AND date <= :end_date
+                """
+            ),
+            {
+                'batch_id': batch_id,
+                'start_date': start_date,
+                'end_date': end_date
+            }
+        ).fetchall()
+
+        def normalize_status(raw_status):
+            val = (raw_status or '').lower()
+            if val in ('present', 'p'):
+                return 'present'
+            if val in ('absent', 'a'):
+                return 'absent'
+            if val in ('leave', 'l', 'holiday', 'holidays', 'h', 'late', 't'):
+                return 'leave'
+            return None
+
         # Organize attendance by student and date
         attendance_map = {}
-        for record in attendance_records:
-            key = f"{record.user_id}_{record.date.day}"
-            attendance_map[key] = record.status.value
+        for row in attendance_rows:
+            # SQLite can return date as string; normalize to date object for day extraction
+            row_date = row.date
+            if isinstance(row_date, str):
+                row_date = datetime.fromisoformat(row_date).date()
+            elif isinstance(row_date, datetime):
+                row_date = row_date.date()
+            elif not isinstance(row_date, date_type):
+                continue  # skip malformed rows
+
+            key = f"{row.user_id}_{row_date.day}"
+            attendance_map[key] = normalize_status(row.status)
         
         # Build response data
         students_data = []
@@ -612,19 +641,48 @@ def download_monthly_attendance():
         start_date = datetime(year, month, 1).date()
         end_date = datetime(year, month, days_in_month).date()
         
-        attendance_records = Attendance.query.filter(
-            and_(
-                Attendance.batch_id == batch_id,
-                Attendance.date >= start_date,
-                Attendance.date <= end_date
-            )
-        ).all()
-        
+        # Fetch attendance using raw SQL to avoid enum coercion issues with legacy values
+        attendance_rows = db.session.execute(
+            text(
+                """
+                SELECT user_id, date, status
+                FROM attendance
+                WHERE batch_id = :batch_id
+                  AND date >= :start_date
+                  AND date <= :end_date
+                """
+            ),
+            {
+                'batch_id': batch_id,
+                'start_date': start_date,
+                'end_date': end_date
+            }
+        ).fetchall()
+
+        def normalize_status(raw_status):
+            val = (raw_status or '').lower()
+            if val in ('present', 'p'):
+                return 'present'
+            if val in ('absent', 'a'):
+                return 'absent'
+            if val in ('leave', 'l', 'holiday', 'holidays', 'h', 'late', 't'):
+                return 'leave'
+            return ''
+
         # Organize attendance by student and date
         attendance_map = {}
-        for record in attendance_records:
-            key = f"{record.user_id}_{record.date.day}"
-            attendance_map[key] = record.status.value
+        for row in attendance_rows:
+            # SQLite can return date as string; normalize to date object for day extraction
+            row_date = row.date
+            if isinstance(row_date, str):
+                row_date = datetime.fromisoformat(row_date).date()
+            elif isinstance(row_date, datetime):
+                row_date = row_date.date()
+            elif not isinstance(row_date, date_type):
+                continue  # skip malformed rows
+
+            key = f"{row.user_id}_{row_date.day}"
+            attendance_map[key] = normalize_status(row.status)
         
         # Create CSV in memory
         output = io.StringIO()
