@@ -701,13 +701,10 @@ def get_sms_balance():
         from models import Settings
         
         current_user = get_current_user()
-        
-        print(f"🔍 SMS Balance Request - User: {current_user.full_name}, Role: {current_user.role}, SMS Count: {current_user.sms_count}")
-        
+                
         # For teachers, return their personal SMS count
         if current_user.role == UserRole.TEACHER:
             balance = current_user.sms_count or 0
-            print(f"✅ Returning TEACHER balance: {balance}")
         else:
             # For super admin, return system-wide balance from settings
             balance_setting = Settings.query.filter_by(key='sms_balance').first()
@@ -723,7 +720,6 @@ def get_sms_balance():
                 db.session.commit()
             
             balance = balance_setting.value.get('balance', 0) if balance_setting.value else 0
-            print(f"✅ Returning ADMIN system balance: {balance}")
         
         total_sent = SmsLog.query.filter(
             SmsLog.sent_by == current_user.id,
@@ -745,6 +741,20 @@ def get_sms_balance():
 
     except Exception as e:
         return error_response(f'Failed to get SMS balance: {str(e)}', 500)
+
+
+@sms_bp.route('/personal-balance', methods=['GET'])
+@login_required
+def get_personal_sms_balance():
+    """Get personal SMS balance for the current user"""
+    try:
+        current_user = get_current_user()
+        return success_response('Personal SMS balance retrieved', {
+            'balance': current_user.sms_count or 0,
+            'role': current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
+        })
+    except Exception as e:
+        return error_response(f'Failed to get personal SMS balance: {str(e)}', 500)
 
 
 @sms_bp.route('/balance-check', methods=['GET'])

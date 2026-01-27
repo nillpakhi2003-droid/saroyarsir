@@ -819,18 +819,11 @@ function teacherDashboard() {
 
         async loadSmsBalance() {
             try {
-                let response = await fetch('/api/sms/balance?_=' + Date.now(), {
+                const response = await fetch('/api/sms/personal-balance?_=' + Date.now(), {
                     credentials: 'include',
                     cache: 'no-cache'
                 });
-                
-                // Fallback to no-auth endpoint if auth fails
-                if (!response.ok) {
-                    response = await fetch('/api/sms/balance-check?_=' + Date.now(), {
-                        cache: 'no-cache'
-                    });
-                }
-                
+
                 if (response.ok) {
                     const result = await response.json();
                     const data = result.data || result;
@@ -1004,20 +997,13 @@ function attendanceManager() {
         // Load SMS balance
         async loadSmsBalance() {
             try {
-                let response = await fetch('/api/sms/balance?_=' + Date.now(), {
+                const response = await fetch('/api/sms/personal-balance?_=' + Date.now(), {
                     method: 'GET',
                     headers: { 'Accept': 'application/json' },
                     credentials: 'same-origin',
                     cache: 'no-cache'
                 });
-                
-                // Fallback to no-auth endpoint
-                if (!response.ok) {
-                    response = await fetch('/api/sms/balance-check?_=' + Date.now(), {
-                        cache: 'no-cache'
-                    });
-                }
-                
+
                 if (response.ok) {
                     const result = await response.json();
                     const data = result.data || result;
