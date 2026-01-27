@@ -213,8 +213,8 @@ function superAdminDashboard() {
             this.loadTeachers();
             this.loadSMSStats();
             this.loadSystemSmsBalance();
-            // Auto-refresh system SMS balance every 5 seconds
-            setInterval(() => this.loadSystemSmsBalance(), 5000);
+            // Auto-refresh system SMS balance every 1 hour (3600000 ms)
+            setInterval(() => this.loadSystemSmsBalance(), 3600000);
         },
 
         async loadStats() {
