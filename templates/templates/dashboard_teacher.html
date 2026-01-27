@@ -262,8 +262,11 @@ function teacherDashboard() {
             this.loadBatches();
             this.loadMonthlyExams();
             this.loadSmsBalance();
-            // Auto-refresh stats every 5 seconds
-            setInterval(() => this.loadStats(), 5000);
+            // Auto-refresh stats and SMS balance every 5 seconds
+            setInterval(() => {
+                this.loadStats();
+                this.loadSmsBalance();
+            }, 5000);
         },
 
         async loadStats() {

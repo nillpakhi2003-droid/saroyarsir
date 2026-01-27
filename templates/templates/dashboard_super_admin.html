@@ -213,6 +213,8 @@ function superAdminDashboard() {
             this.loadTeachers();
             this.loadSMSStats();
             this.loadSystemSmsBalance();
+            // Auto-refresh system SMS balance every 5 seconds
+            setInterval(() => this.loadSystemSmsBalance(), 5000);
         },
 
         async loadStats() {
@@ -367,6 +369,7 @@ function superAdminDashboard() {
                     alert(`Successfully added ${this.systemCreditsToAdd} SMS credits!\\nNew Balance: ${data.data.new_balance}`);
                     this.systemCreditsToAdd = '';
                     await this.loadSystemSmsBalance();
+                    await this.loadTeachers(); // Refresh teacher list to show updated balances
                 } else {
                     const error = await response.json();
                     alert(`Failed to add credits: ${error.message || 'Unknown error'}`);
