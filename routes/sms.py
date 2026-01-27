@@ -696,26 +696,31 @@ def validate_sms_message():
 @login_required
 @require_role(UserRole.TEACHER, UserRole.SUPER_USER)
 def get_sms_balance():
-    """Get SMS balance from local settings"""
+    """Get SMS balance - returns teacher's personal balance or system balance for super admin"""
     try:
         from models import Settings
         
-        # Get balance from settings
-        balance_setting = Settings.query.filter_by(key='sms_balance').first()
-        if not balance_setting:
-            # Initialize with 0 balance (super admin will add balance)
-            balance_setting = Settings(
-                key='sms_balance',
-                value={'balance': 0},
-                category='sms',
-                description='Current SMS balance (managed by super admin)'
-            )
-            db.session.add(balance_setting)
-            db.session.commit()
-        
-        balance = balance_setting.value.get('balance', 0) if balance_setting.value else 0
-        
         current_user = get_current_user()
+        
+        # For teachers, return their personal SMS count
+        if current_user.role == UserRole.TEACHER:
+            balance = current_user.sms_count or 0
+        else:
+            # For super admin, return system-wide balance from settings
+            balance_setting = Settings.query.filter_by(key='sms_balance').first()
+            if not balance_setting:
+                # Initialize with 0 balance (super admin will add balance)
+                balance_setting = Settings(
+                    key='sms_balance',
+                    value={'balance': 0},
+                    category='sms',
+                    description='Current SMS balance (managed by super admin)'
+                )
+                db.session.add(balance_setting)
+                db.session.commit()
+            
+            balance = balance_setting.value.get('balance', 0) if balance_setting.value else 0
+        
         total_sent = SmsLog.query.filter(
             SmsLog.sent_by == current_user.id,
             SmsLog.status == SmsStatus.SENT
